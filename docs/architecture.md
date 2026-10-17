@@ -73,7 +73,7 @@ flowchart TD
 
 ### Data engineering (`data/features.py`, `data/dataset.py`, `data/windows.py`)
 
-- **Features:** `cpu_percent`, `memory_percent`, and the four byte deltas. Byte features are `log1p`-transformed (heavy-tailed), then standardized.
+- **Features:** `cpu_percent`, `memory_percent`, and the four byte deltas. Byte features are `log1p`-transformed (heavy-tailed), then standardized. Each feature's scale is floored (1 pp for percents, 0.1 log-units for bytes), so a feature that was nearly constant during training cannot turn a tiny shift into an extreme z-score. This was found on real container data; see [results.md](results.md#run-1-diagnosis).
 - **Cleaning:** coerce to numeric, replace ±inf with NaN, forward-fill within each series (past values only), back-fill leading gaps, fill remaining gaps with 0, and clip negatives to 0.
 - **Series:** identified by `container_id` and/or `run_id`. Cleaning, splitting, windowing, and the rolling baseline all operate per series.
 - **Split:** for each series, the first 80% of observations go to training and the rest to validation, decided on raw rows *before* windowing.

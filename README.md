@@ -6,7 +6,7 @@ DevWaste AI is a local-first DevOps tool. It collects Docker container resource 
 
 It uses no LLMs and no external AI APIs. Training and inference run locally on CPU, and CUDA is optional.
 
-> **Project status:** MVP. The pipeline works end to end and is tested. Detection quality has only been measured on **synthetic data** (see [docs/results.md](docs/results.md)). It has not been validated on real production workloads.
+> **Project status:** MVP. The pipeline works end to end and is tested. Detection quality has been measured on synthetic data and on incidents injected into one real container (see [docs/results.md](docs/results.md)). It has not been validated on real production workloads.
 
 ## Overview
 
@@ -157,6 +157,18 @@ Window-level F1, mean ± std over 3 training seeds × 3 independent test runs. F
 
 The z-score and rolling baselines use the same scaler and the same validation-quantile threshold rule as the LSTM. The LSTM helps most on temporal patterns such as oscillation and gradual growth, while a per-value z-score is better on isolated spikes. False-positive rate on held-out normal runs is about 3.5% for all calibrated detectors.
 
+### Controlled incidents in a real container
+
+`scripts/real_incident_experiment.py` runs an unprivileged, resource-limited container. The container does light normal work, then has CPU burn, memory-leak, disk-burst, and CPU-oscillation incidents injected, with logged ground-truth times. On a fresh run, with window-level metrics and the mean of 3 seeds:
+
+| Detector | F1 | FPR |
+|---|---|---|
+| LSTM AE | 0.932 | 0.228 |
+| z-score | **0.967** | **0.094** |
+| fixed threshold | 0.710 | 0.008 |
+
+On these large level-change incidents, the simple z-score is at least as good as the LSTM. Most of the LSTM's false positives occur within 15 s after an incident ends, during recovery. An earlier run exposed a preprocessing flaw (near-constant training features exaggerating tiny shifts), which is now fixed. The details, including the pre-fix run, are in [docs/results.md](docs/results.md#part-2-controlled-incidents-in-a-real-container).
+
 ## Safety and Privacy
 
 - No LLMs or external AI inference APIs. All inference is local.
@@ -208,13 +220,14 @@ docs/
 - [x] JSON reports and automated tests
 - [x] GitHub Actions
 - [x] Reproducible synthetic experiment results
-- [ ] Evaluation on real labelled container incidents
+- [x] Controlled incident experiment in a real container
+- [ ] Evaluation on real (non-injected) incidents
 - [x] Per-feature error attribution in reports
 - [ ] Continuous monitoring mode (collect and score online)
 
 ## Limitations
 
-- Synthetic data does not represent production workloads. The reported metrics come from synthetic data only.
+- The reported metrics come from synthetic data and from injected incidents in one real container. Neither represents production workloads.
 - High utilisation is not necessarily waste, and anomalies are not necessarily problems.
 - A model trained on one set of containers learns *their* normal behaviour. Scoring very different containers will produce many flags.
 - Collection is polling-based. Each stats call takes about 1–2 s (calls run in parallel), so intervals under about 2 s are not reliable.
