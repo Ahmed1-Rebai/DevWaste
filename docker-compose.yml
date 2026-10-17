@@ -1,0 +1,14 @@
+services:
+  devwaste:
+    build: .
+    container_name: devwaste-dev
+    volumes:
+      - .:/app
+      # Only needed for `scan`, `collect`, and `cleanup --dry-run`.
+      # Access to the Docker socket is equivalent to root on the host;
+      # remove this line if you only work with synthetic data.
+      - /var/run/docker.sock:/var/run/docker.sock
+    environment:
+      - PYTHONUNBUFFERED=1
+    working_dir: /app
+    command: tail -f /dev/null
