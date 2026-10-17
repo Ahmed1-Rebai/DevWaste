@@ -85,9 +85,12 @@ class RollingBaseline:
     """
     Rolling statistics-based anomaly detector.
 
-    Flags observations that deviate from the rolling mean of the preceding
-    observations (past only) of the same series by more than
-    ``std_threshold`` rolling standard deviations, on any feature.
+    A point's score is its largest absolute deviation, over all features,
+    from the rolling mean of the preceding ``window_size`` observations of
+    the same series (past only), in rolling standard deviations.
+
+    Used at window level with a threshold calibrated on validation windows
+    (like the LSTM), or at point level with a fixed ``std_threshold``.
     """
 
     def __init__(
@@ -101,15 +104,15 @@ class RollingBaseline:
 
         Args:
             window_size: Rolling window size for statistics
-            std_threshold: Number of standard deviations for anomaly detection
+            std_threshold: Point-level threshold used by :meth:`predict`
             features: Features to check (defaults to all model features)
         """
         self.window_size = window_size
         self.std_threshold = std_threshold
         self.features = features or list(FEATURE_COLUMNS)
 
-    def _series_predict(self, df: pd.DataFrame) -> np.ndarray:
-        predictions = np.zeros(len(df), dtype=int)
+    def _series_scores(self, df: pd.DataFrame) -> np.ndarray:
+        scores = np.zeros(len(df))
         for feature in self.features:
             if feature not in df.columns:
                 continue
@@ -117,24 +120,28 @@ class RollingBaseline:
             past = series.shift(1).rolling(window=self.window_size, min_periods=2)
             mean, std = past.mean(), past.std().replace(0, np.nan)
             z = ((series - mean) / std).abs().fillna(0).to_numpy()
-            predictions = np.maximum(predictions, (z > self.std_threshold).astype(int))
-        return predictions
+            scores = np.maximum(scores, z)
+        return scores
 
-    def predict(self, df: pd.DataFrame) -> np.ndarray:
+    def score_points(self, df: pd.DataFrame) -> np.ndarray:
         """
-        Predict point-level anomalies using rolling statistics.
+        Point-level rolling z-scores, computed independently per series.
 
         Args:
             df: DataFrame with metrics, sorted in time order
 
         Returns:
-            Binary predictions array aligned with ``df``
+            Score array aligned with ``df``
         """
         keys = series_keys(df)
         if not keys:
-            return self._series_predict(df)
+            return self._series_scores(df)
 
-        predictions = np.zeros(len(df), dtype=int)
+        scores = np.zeros(len(df))
         for positions in df.groupby(keys, sort=False, dropna=False).indices.values():
-            predictions[positions] = self._series_predict(df.iloc[positions])
-        return predictions
+            scores[positions] = self._series_scores(df.iloc[positions])
+        return scores
+
+    def predict(self, df: pd.DataFrame) -> np.ndarray:
+        """Point-level predictions using the fixed ``std_threshold``."""
+        return (self.score_points(df) > self.std_threshold).astype(int)

@@ -130,3 +130,37 @@ class TestEvaluation:
 
         assert results["model_metrics"]["auc"] > 0.5
         assert np.isfinite(results["threshold"])
+
+
+class TestAttribution:
+    def test_feature_errors_match_window_mse(self, trained_model):
+        from devwaste.models.train import feature_errors
+
+        artifacts = ModelArtifacts.load(trained_model)
+        model = artifacts.build_model()
+        X = np.random.default_rng(0).normal(size=(5, artifacts.window_size, 6))
+
+        per_feature = feature_errors(model, X)
+        total = model.calculate_reconstruction_error(
+            torch.as_tensor(X, dtype=torch.float32)
+        )
+
+        assert per_feature.shape == (5, 6)
+        np.testing.assert_allclose(per_feature.mean(axis=1), total.detach(), rtol=1e-5)
+
+    def test_cpu_spikes_attributed_to_cpu(self, trained_model, cpu_spike_csv):
+        results = evaluate_model(cpu_spike_csv, trained_model, top_k=3)
+
+        for window in results["top_windows"]:
+            assert sum(window["feature_share"].values()) == pytest.approx(1, abs=1e-3)
+        assert results["top_windows"][0]["top_feature"] == "cpu_percent"
+        # the shared fixture is trained for only 3 epochs, so other features
+        # also drive some flags; CPU must still be among them
+        assert "cpu_percent" in results["flagged_by_feature"]
+
+    def test_rolling_baseline_calibrated(self, trained_model, cpu_spike_csv):
+        artifacts = ModelArtifacts.load(trained_model)
+        results = evaluate_model(cpu_spike_csv, trained_model)
+
+        assert artifacts.baseline_state["rolling_threshold"] > 0
+        assert results["baseline_metrics"]["rolling"]["auc"] is not None

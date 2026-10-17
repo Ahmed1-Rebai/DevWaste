@@ -13,7 +13,7 @@ from devwaste.data.windows import WindowGenerator
 from devwaste.evaluation.metrics import calculate_metrics
 from devwaste.models.artifacts import ModelArtifacts
 from devwaste.models.baselines import RollingBaseline, ThresholdBaseline, ZScoreBaseline
-from devwaste.models.train import reconstruction_errors
+from devwaste.models.train import feature_errors
 
 
 def evaluate_model(
@@ -54,11 +54,15 @@ def evaluate_model(
 
     model = artifacts.build_model()
     start = time.perf_counter()
-    errors = reconstruction_errors(model, X_windows)
+    per_feature = feature_errors(model, X_windows)
     elapsed = time.perf_counter() - start
+    errors = per_feature.mean(axis=1)
 
     threshold = float(artifacts.threshold)
     predictions = (errors > threshold).astype(int)
+    feature_names = feature_engineer.feature_names
+    top_feature = np.asarray(feature_names)[per_feature.argmax(axis=1)]
+    flagged_drivers = pd.Series(top_feature[predictions == 1]).value_counts()
 
     results: dict[str, Any] = {
         "data_path": str(data_path),
@@ -70,7 +74,10 @@ def evaluate_model(
         "flagged_fraction": float(predictions.mean()),
         "inference_ms_per_window": 1000 * elapsed / max(len(X_windows), 1),
         "labelled": y is not None,
-        "top_windows": _top_windows(window_meta, errors, predictions, top_k),
+        "flagged_by_feature": {k: int(v) for k, v in flagged_drivers.items()},
+        "top_windows": _top_windows(
+            window_meta, errors, per_feature, feature_names, predictions, top_k
+        ),
     }
 
     if y is None:
@@ -99,7 +106,7 @@ def evaluate_baselines(
         X_windows: Scaled windows
         y_windows: Window labels
         window_generator: Window generator used for the model windows
-        artifacts: Model artifacts (provides the calibrated z-score threshold)
+        artifacts: Model artifacts (provide calibrated baseline thresholds)
 
     Returns:
         Mapping of baseline name to metrics
@@ -115,25 +122,49 @@ def evaluate_baselines(
             ZScoreBaseline.score_windows(X_windows),
         )
 
-    for name, detector in (
-        ("threshold", ThresholdBaseline()),
-        ("rolling", RollingBaseline(window_size=artifacts.window_size)),
-    ):
-        point_preds = detector.predict(df)
-        window_preds = window_generator.windows_from_points(point_preds, df).astype(int)
-        results[name] = calculate_metrics(y_windows, window_preds)
+    point_preds = ThresholdBaseline().predict(df)
+    window_preds = window_generator.windows_from_points(point_preds, df).astype(int)
+    results["threshold"] = calculate_metrics(y_windows, window_preds)
+
+    rolling_threshold = artifacts.baseline_state.get("rolling_threshold")
+    if rolling_threshold is not None:
+        point_scores = RollingBaseline(window_size=artifacts.window_size).score_points(
+            df
+        )
+        window_scores = window_generator.windows_from_points(point_scores, df)
+        results["rolling"] = calculate_metrics(
+            y_windows, (window_scores > rolling_threshold).astype(int), window_scores
+        )
 
     return results
 
 
 def _top_windows(
-    window_meta: pd.DataFrame, errors: np.ndarray, predictions: np.ndarray, k: int
+    window_meta: pd.DataFrame,
+    errors: np.ndarray,
+    per_feature: np.ndarray,
+    feature_names: list[str],
+    predictions: np.ndarray,
+    k: int,
 ) -> list[dict[str, Any]]:
-    """Highest-scoring windows with their metadata, as JSON-safe dicts."""
+    """
+    Highest-scoring windows with metadata and per-feature attribution.
+
+    ``feature_share`` is each feature's fraction of the window's total
+    reconstruction error; ``top_feature`` is the largest contributor.
+    """
     order = np.argsort(errors)[::-1][:k]
     top = window_meta.iloc[order].copy()
     top["score"] = errors[order]
     top["flagged"] = predictions[order].astype(bool)
+    shares = per_feature[order] / np.maximum(
+        per_feature[order].sum(axis=1, keepdims=True), 1e-12
+    )
+    top["top_feature"] = [feature_names[i] for i in shares.argmax(axis=1)]
+    top["feature_share"] = [
+        {name: round(float(v), 4) for name, v in zip(feature_names, row, strict=True)}
+        for row in shares
+    ]
     for col in ("start_timestamp", "end_timestamp"):
         if col in top.columns:
             top[col] = pd.to_datetime(top[col]).dt.strftime("%Y-%m-%dT%H:%M:%S")

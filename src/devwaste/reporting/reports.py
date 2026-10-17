@@ -114,13 +114,18 @@ def print_evaluation(console: Console, results: dict[str, Any]):
             for c in ("container_name", "run_id", "start_timestamp", "end_timestamp")
             if c in results["top_windows"][0]
         ]
-        for col in [*meta_cols, "score", "flagged"]:
+        cols = [*meta_cols, "score", "flagged", "top_feature"]
+        for col in cols:
             table.add_column(col)
         for row in results["top_windows"]:
-            table.add_row(
-                *[_fmt(row.get(c), 4) for c in [*meta_cols, "score", "flagged"]]
-            )
+            table.add_row(*[_fmt(row.get(c), 4) for c in cols])
         console.print(table)
+
+    if results["flagged_by_feature"]:
+        drivers = ", ".join(
+            f"{k} {v}" for k, v in results["flagged_by_feature"].items()
+        )
+        console.print(f"Flagged windows by largest-error feature: {drivers}")
 
     console.print(
         "[dim]Diagnostic signal only: a high score means the pattern differs from "

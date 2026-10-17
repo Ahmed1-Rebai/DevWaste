@@ -83,3 +83,17 @@ class TestBaselines:
         preds = RollingBaseline(window_size=5, features=["cpu_percent"]).predict(df)
 
         assert preds.sum() == 0
+
+
+def test_rolling_scores_are_past_only():
+    """Changing a future value never changes an earlier score."""
+    rng = np.random.default_rng(1)
+    df = pd.DataFrame({"cpu_percent": rng.normal(50, 1, 40)})
+    baseline = RollingBaseline(window_size=10, features=["cpu_percent"])
+    before = baseline.score_points(df)
+
+    df.loc[30, "cpu_percent"] = 500
+    after = baseline.score_points(df)
+
+    np.testing.assert_array_equal(before[:30], after[:30])
+    assert after[30] > before[30]

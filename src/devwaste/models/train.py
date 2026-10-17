@@ -23,7 +23,7 @@ from devwaste.data.dataset import chronological_split, get_labels, load_dataset
 from devwaste.data.features import FeatureEngineer, series_keys
 from devwaste.data.windows import WindowGenerator
 from devwaste.models.artifacts import ModelArtifacts
-from devwaste.models.baselines import ZScoreBaseline
+from devwaste.models.baselines import RollingBaseline, ZScoreBaseline
 from devwaste.models.lstm_autoencoder import LSTMAutoencoder
 
 
@@ -34,10 +34,15 @@ def set_seed(seed: int):
     torch.manual_seed(seed)
 
 
-def reconstruction_errors(
+def feature_errors(
     model: LSTMAutoencoder, X_windows: np.ndarray, batch_size: int = 1024
 ) -> np.ndarray:
-    """Per-window reconstruction errors, computed in batches on the model's device."""
+    """
+    Per-window, per-feature reconstruction errors, shape (n_windows, n_features).
+
+    Each entry is the squared error of one feature averaged over the window's
+    timesteps; the mean over features equals the window's overall MSE.
+    """
     device = next(model.parameters()).device
     model.eval()
     errors = []
@@ -48,8 +53,18 @@ def reconstruction_errors(
                 dtype=torch.float32,
                 device=device,
             )
-            errors.append(model.calculate_reconstruction_error(batch).cpu().numpy())
-    return np.concatenate(errors) if errors else np.zeros(0)
+            squared = (batch - model(batch)) ** 2
+            errors.append(squared.mean(dim=1).cpu().numpy())
+    if not errors:
+        return np.zeros((0, X_windows.shape[-1] if X_windows.ndim == 3 else 0))
+    return np.concatenate(errors)
+
+
+def reconstruction_errors(
+    model: LSTMAutoencoder, X_windows: np.ndarray, batch_size: int = 1024
+) -> np.ndarray:
+    """Per-window reconstruction errors (MSE), computed in batches."""
+    return feature_errors(model, X_windows, batch_size).mean(axis=1)
 
 
 def train_model(
@@ -214,6 +229,12 @@ def train_model(
     val_errors = reconstruction_errors(model, X_val)
     threshold = float(np.quantile(val_errors, threshold_quantile))
     zscore_threshold = ZScoreBaseline().calibrate(X_val, threshold_quantile)
+    rolling_scores = window_generator.windows_from_points(
+        RollingBaseline(window_size=window_size).score_points(val_df), val_df
+    )
+    rolling_threshold = float(
+        np.quantile(rolling_scores[y_val == 0], threshold_quantile)
+    )
     log(f"Threshold (validation quantile {threshold_quantile}): {threshold:.4f}")
 
     results = {
@@ -236,7 +257,10 @@ def train_model(
         input_dim=input_dim,
         threshold=threshold,
         threshold_method=f"quantile_{threshold_quantile}",
-        baseline_state={"zscore_threshold": zscore_threshold},
+        baseline_state={
+            "zscore_threshold": zscore_threshold,
+            "rolling_threshold": rolling_threshold,
+        },
         training_config={
             "data_path": str(data_path),
             "epochs": epochs,
