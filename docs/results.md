@@ -15,84 +15,91 @@ python scripts/run_experiment.py --out experiments
 | Item | Value |
 |---|---|
 | Training data | One `normal` run, 3000 samples, simulator seed 1000 |
-| Test data | One run per scenario, 1000 samples each, seeds 2000–2003; held-out `normal` run, seed 3000 |
+| Test data | 3 independent runs per scenario (and 3 held-out `normal` runs), 1000 samples each, each with its own seed |
 | Model | LSTM AE, 1 layer, hidden 16, window 10, stride 1 |
 | Training | Adam lr 1e-3, batch 32, ≤50 epochs, early stopping (patience 10) on normal validation loss |
 | Split | Chronological 80/20 per series *before* windowing; scaler fit on the training split only |
 | Threshold | 95th percentile of reconstruction error on normal validation windows |
-| Training seeds | 0, 1, 2 (table shows mean ± std across seeds) |
+| Training seeds | 0, 1, 2 |
+| Aggregation | Mean ± std over 9 (training seed × test run) evaluations |
 | Unit of evaluation | Window (a window is anomalous if any of its samples is labelled anomalous) |
 | Hardware | AMD Ryzen 5 220 laptop CPU (12 threads), PyTorch 2.14.1+cpu, Python 3.13 |
 
-Anomalous-window prevalence in the test sets: cpu-spike 15.5%,
-memory-growth 47.0%, network-spike 14.7%, oscillating 50.5%, normal 0%.
+Anomalous-window prevalence in the test sets (mean over runs): cpu-spike
+15.5%, memory-growth 47.0%, network-spike 16.4%, oscillating 50.5%,
+normal 0%.
 
-Mean training time was 5.3 s per model. Batched inference took about
-0.002 ms per window, so per-window inference is far below the 1 s target.
+Training takes 5.0 s per model on average. Batched inference takes about
+0.002 ms per window.
 
 ## Detectors
 
 | Name | Description |
 |---|---|
 | **LSTM AE** | Reconstruction error of the LSTM Autoencoder. |
-| **zscore** | Largest absolute z-score in the window. It uses the same training scaler and the same 95th-percentile validation calibration as the LSTM, which makes it the like-for-like baseline. |
-| **threshold** | Fixed rules `cpu_percent > 80` or `memory_percent > 80`. **Caveat:** these rules overlap with how the cpu-spike and memory-growth labels are generated, so it is advantaged on those scenarios. |
-| **rolling** | Point is flagged if any feature is more than 3 rolling standard deviations (past 10 samples) from its rolling mean; a window is flagged if any point is. It is **not tuned**, and its false-positive rate is very high. |
+| **zscore** | Largest absolute z-score in the window, using the same training scaler as the LSTM. Threshold: same 95th-percentile validation calibration. |
+| **rolling** | Largest past-only rolling z-score (previous 10 samples, per series) in the window. Threshold: same 95th-percentile validation calibration. |
+| **threshold** | Fixed rules `cpu_percent > 80` or `memory_percent > 80`. **Caveat:** these rules overlap with how the cpu-spike labels are generated, so it is advantaged on that scenario. |
 
 ## Results
 
 | Scenario | Detector | Precision | Recall | F1 | FPR | ROC-AUC |
 |---|---|---|---|---|---|---|
-| cpu-spike | LSTM AE | 0.766 ± 0.042 | 0.974 ± 0.005 | 0.857 ± 0.028 | 0.055 ± 0.012 | 0.996 ± 0.001 |
-| cpu-spike | zscore | 1.000 ± 0.000 | 0.948 ± 0.000 | 0.973 ± 0.000 | 0.000 ± 0.000 | 1.000 ± 0.000 |
-| cpu-spike | threshold | 1.000 ± 0.000 | 0.994 ± 0.000 | 0.997 ± 0.000 | 0.000 ± 0.000 | n/a |
-| cpu-spike | rolling | 0.187 ± 0.000 | 0.922 ± 0.000 | 0.311 ± 0.000 | 0.737 ± 0.000 | n/a |
-| memory-growth | LSTM AE | 0.920 ± 0.002 | 0.918 ± 0.028 | 0.919 ± 0.013 | 0.070 ± 0.004 | 0.986 ± 0.003 |
-| memory-growth | zscore | 0.951 ± 0.000 | 0.841 ± 0.000 | 0.893 ± 0.000 | 0.038 ± 0.000 | 0.968 ± 0.000 |
-| memory-growth | threshold | 1.000 ± 0.000 | 0.285 ± 0.000 | 0.444 ± 0.000 | 0.000 ± 0.000 | n/a |
-| memory-growth | rolling | 0.462 ± 0.000 | 0.738 ± 0.000 | 0.568 ± 0.000 | 0.764 ± 0.000 | n/a |
-| network-spike | LSTM AE | 0.801 ± 0.008 | 1.000 ± 0.000 | 0.889 ± 0.005 | 0.043 ± 0.002 | 0.997 ± 0.000 |
-| network-spike | zscore | 0.881 ± 0.000 | 0.808 ± 0.000 | 0.843 ± 0.000 | 0.019 ± 0.000 | 0.981 ± 0.000 |
+| cpu-spike | LSTM AE | 0.826 ± 0.069 | 0.975 ± 0.008 | 0.893 ± 0.041 | 0.039 ± 0.017 | 0.995 ± 0.003 |
+| cpu-spike | zscore | 0.946 ± 0.042 | 0.961 ± 0.009 | 0.953 ± 0.017 | 0.010 ± 0.008 | 0.990 ± 0.008 |
+| cpu-spike | threshold | 1.000 ± 0.000 | 0.996 ± 0.003 | 0.998 ± 0.002 | 0.000 ± 0.000 | n/a |
+| cpu-spike | rolling | 0.707 ± 0.032 | 0.650 ± 0.010 | 0.677 ± 0.015 | 0.050 ± 0.009 | 0.803 ± 0.034 |
+| memory-growth | LSTM AE | 0.952 ± 0.027 | 0.648 ± 0.096 | 0.768 ± 0.078 | 0.027 ± 0.011 | 0.896 ± 0.059 |
+| memory-growth | zscore | 0.946 ± 0.027 | 0.532 ± 0.083 | 0.678 ± 0.076 | 0.025 ± 0.009 | 0.919 ± 0.043 |
+| memory-growth | threshold | 1.000 ± 0.000 | 0.165 ± 0.075 | 0.275 ± 0.110 | 0.000 ± 0.000 | n/a |
+| memory-growth | rolling | 0.436 ± 0.199 | 0.029 ± 0.010 | 0.055 ± 0.019 | 0.043 ± 0.030 | 0.488 ± 0.052 |
+| network-spike | LSTM AE | 0.842 ± 0.068 | 0.985 ± 0.006 | 0.907 ± 0.041 | 0.037 ± 0.019 | 0.990 ± 0.001 |
+| network-spike | zscore | 0.782 ± 0.077 | 0.791 ± 0.043 | 0.782 ± 0.025 | 0.046 ± 0.023 | 0.966 ± 0.016 |
 | network-spike | threshold | 0.000 ± 0.000 | 0.000 ± 0.000 | 0.000 ± 0.000 | 0.000 ± 0.000 | n/a |
-| network-spike | rolling | 0.172 ± 0.000 | 0.918 ± 0.000 | 0.290 ± 0.000 | 0.761 ± 0.000 | n/a |
-| oscillating | LSTM AE | 0.959 ± 0.003 | 0.994 ± 0.004 | 0.976 ± 0.003 | 0.043 ± 0.003 | 0.993 ± 0.002 |
-| oscillating | zscore | 0.967 ± 0.000 | 0.594 ± 0.000 | 0.736 ± 0.000 | 0.020 ± 0.000 | 0.931 ± 0.000 |
-| oscillating | threshold | 1.000 ± 0.000 | 0.674 ± 0.000 | 0.805 ± 0.000 | 0.000 ± 0.000 | n/a |
-| oscillating | rolling | 0.467 ± 0.000 | 0.670 ± 0.000 | 0.551 ± 0.000 | 0.778 ± 0.000 | n/a |
-| normal | LSTM AE | – | – | – | 0.026 ± 0.000 | n/a |
-| normal | zscore | – | – | – | 0.030 ± 0.000 | n/a |
+| network-spike | rolling | 0.757 ± 0.075 | 0.718 ± 0.090 | 0.735 ± 0.076 | 0.045 ± 0.014 | 0.849 ± 0.037 |
+| oscillating | LSTM AE | 0.967 ± 0.025 | 0.995 ± 0.004 | 0.981 ± 0.013 | 0.035 ± 0.026 | 0.995 ± 0.006 |
+| oscillating | zscore | 0.939 ± 0.049 | 0.603 ± 0.019 | 0.735 ± 0.029 | 0.041 ± 0.033 | 0.953 ± 0.033 |
+| oscillating | threshold | 1.000 ± 0.000 | 0.681 ± 0.009 | 0.810 ± 0.006 | 0.000 ± 0.000 | n/a |
+| oscillating | rolling | 0.459 ± 0.155 | 0.027 ± 0.009 | 0.050 ± 0.018 | 0.033 ± 0.012 | 0.451 ± 0.013 |
+| normal | LSTM AE | – | – | – | 0.035 ± 0.010 | n/a |
+| normal | zscore | – | – | – | 0.037 ± 0.005 | n/a |
 | normal | threshold | – | – | – | 0.000 ± 0.000 | n/a |
-| normal | rolling | – | – | – | 0.748 ± 0.000 | n/a |
-
-The baselines are deterministic, so their std is 0. The z-score threshold
-depends only on the scaler and validation data, which are the same for
-every seed.
+| normal | rolling | – | – | – | 0.031 ± 0.005 | n/a |
 
 ## Interpretation
 
-- **Where the LSTM helps:** temporal patterns. On `oscillating` it reaches
-  F1 0.976 vs 0.736 for z-score, because each oscillating value stays inside
-  the normal range but the sequence shape does not. It also beats z-score
-  on `memory-growth` (0.919 vs 0.893) and `network-spike` (0.889 vs 0.843).
-- **Where it does not:** isolated point spikes. On `cpu-spike` the per-value
-  z-score is better (0.973 vs 0.857 F1), and the LSTM has more false
-  positives. Spikes push z-scores far beyond anything seen in training, so
-  a per-value detector separates them almost perfectly.
-- **Fixed thresholds** look strong only where their rule matches the label
-  rule (`cpu-spike`). They miss network anomalies and early memory growth
-  entirely.
-- **False-positive rate on clean data** is 2.6% for the LSTM. Calibrating at
-  the 95th percentile should give about 5%, so the threshold is somewhat
-  conservative on this held-out normal run.
+- **Where the LSTM helps:** temporal patterns. On `oscillating`, F1 is
+  0.981 vs 0.735 for z-score, because each value stays in the normal range
+  but the sequence shape does not. It also leads on `network-spike` (0.907
+  vs 0.782) and `memory-growth` (0.768 vs 0.678). Gradual growth is the
+  hardest scenario for every detector: the early leak phase is labelled
+  anomalous but looks almost normal, so recall stays at about 0.65 even
+  for the LSTM. The memory-growth ROC-AUC of the LSTM (0.896) is slightly
+  below z-score (0.919), so its F1 advantage comes from where the
+  threshold falls rather than from better ranking overall.
+- **Where it does not:** isolated CPU spikes. The per-value z-score is
+  better (F1 0.953 vs 0.893), with fewer false positives.
+- **Rolling statistics** adapt to slow change by design, so they miss
+  memory growth and sustained oscillation almost entirely (F1 ≈ 0.05).
+  They work moderately on short spikes.
+- **Fixed thresholds** look strong only where the rule matches the label
+  rule (`cpu-spike`). They miss network anomalies entirely and catch only
+  the end of memory growth.
+- **False-positive rate on clean data** is 3.1–3.7% for all calibrated
+  detectors, close to but below the 5% implied by the 95th-percentile
+  calibration.
+- **Run-to-run variation matters.** An earlier version of this experiment
+  used a single test run per scenario and reported memory-growth F1 of
+  0.919 for the LSTM. With 3 test runs it is 0.768 ± 0.078. Single-run
+  numbers were optimistic.
 
 ## Limitations of this experiment
 
 - The simulator generates every scenario, including the "normal" process.
   Real workloads have far more varied patterns, and anomalies are not
   injected with clean labels.
-- One training run and one test run per scenario. More independent runs
-  would give tighter estimates.
+- One training run and three test runs per scenario. The std mixes
+  training-seed and test-run variation.
 - Window-level labels with stride 1 make neighbouring windows highly
   correlated. Metrics count windows, not distinct incidents.
-- Hyperparameters were left at their defaults (no tuning on test data). The
-  rolling baseline in particular is untuned.
+- Hyperparameters were left at their defaults (no tuning on test data).

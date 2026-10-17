@@ -101,7 +101,7 @@ flowchart LR
 2. Fit the scaler on **normal training rows only**.
 3. Window both splits per series, then drop any window containing a labelled anomaly. Unlabelled data is assumed normal.
 4. Adam with gradient clipping, ReduceLROnPlateau, and early stopping on validation loss. Keep the best epoch.
-5. Threshold = `quantile(validation errors, 0.95)`. Calibrate the z-score baseline with the same rule.
+5. Threshold = `quantile(validation errors, 0.95)`. Calibrate the z-score and rolling baselines with the same rule.
 6. Save `model.pt` (state dict, loaded with `weights_only=True`) and `metadata.json` (hyperparameters, scaler state, thresholds, and loss history).
 
 All RNGs (Python, NumPy, torch, DataLoader shuffling) are seeded, so repeated CPU runs with the same seed produce identical weights. This is covered by a test.
@@ -114,9 +114,10 @@ All RNGs (Python, NumPy, torch, DataLoader shuffling) are seeded, so repeated CP
 - **Baselines:**
   - `zscore`: max |z| per window, calibrated like the model. This is the fair comparison.
   - `threshold`: fixed rules (`cpu > 80`, `mem > 80`).
-  - `rolling`: past-only rolling z-score per series.
+  - `rolling`: max past-only rolling z-score per window (per series), calibrated like the model.
 
-  The point-level baselines are aggregated to windows by max.
+  Point-level scores and rules are aggregated to windows by max.
+- **Attribution:** per-feature squared error averaged over the window. The feature with the largest share is reported for each top window, and flagged windows are counted by that feature.
 
 ### Reporting (`reporting/reports.py`)
 
@@ -172,7 +173,7 @@ sequenceDiagram
 ## Limitations
 
 1. Results so far are on synthetic data only (see [results.md](results.md)).
-2. Per-window MSE does not say *which* metric caused a flag.
+2. Attribution shows which feature the model failed to reconstruct. That is a hint, not a root cause.
 3. A model is specific to the containers and period it was trained on, and there is no drift handling.
 4. Polling collection at 1–2 s resolution misses sub-second bursts.
 5. Window labels with stride 1 are highly correlated, so metrics count windows, not incidents.

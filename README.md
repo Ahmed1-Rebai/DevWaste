@@ -23,7 +23,7 @@ DevWaste AI learns what *normal* resource usage looks like from time-series wind
 - **Synthetic scenarios** (`simulate`): reproducible, labelled `normal`, `cpu-spike`, `memory-growth`, `network-spike`, and `oscillating` runs.
 - **Leakage-safe preprocessing**: chronological split per series *before* windowing, a scaler fitted on training data only, and windows that never span two containers or runs.
 - **LSTM Autoencoder** (`train`): trained on normal windows only. The threshold is the 95th percentile of reconstruction error on normal validation windows.
-- **Evaluation** (`evaluate`): precision, recall, F1, FPR, confusion matrix, ROC-AUC, and inference latency. The model is compared on the same windows with a calibrated z-score baseline, a fixed-threshold baseline, and a rolling-statistics baseline. Unlabelled data, such as real collected metrics, gets a detection-only report.
+- **Evaluation** (`evaluate`): precision, recall, F1, FPR, confusion matrix, ROC-AUC, and inference latency. The model is compared on the same windows with calibrated z-score and rolling-statistics baselines and a fixed-threshold rule. Each flagged window is attributed to the feature with the largest reconstruction error. Unlabelled data, such as real collected metrics, gets a detection-only report.
 - **Safe cleanup advice** (`cleanup --dry-run`): read-only inspection. The tool suggests commands and never runs them.
 
 ## Architecture
@@ -144,18 +144,18 @@ This trains on synthetic normal data with three seeds, evaluates every scenario 
 
 ## Results (synthetic data)
 
-Window-level F1, mean of 3 training seeds. Full table, setup, and caveats are in [docs/results.md](docs/results.md).
+Window-level F1, mean ± std over 3 training seeds × 3 independent test runs. Full table, setup, and caveats are in [docs/results.md](docs/results.md).
 
-| Scenario | LSTM AE | z-score baseline | Fixed threshold |
-|---|---|---|---|
-| cpu-spike | 0.857 | **0.973** | 0.997* |
-| memory-growth | **0.919** | 0.893 | 0.444 |
-| network-spike | **0.889** | 0.843 | 0.000 |
-| oscillating | **0.976** | 0.736 | 0.805 |
+| Scenario | LSTM AE | z-score | rolling | fixed threshold |
+|---|---|---|---|---|
+| cpu-spike | 0.893 ± 0.041 | **0.953 ± 0.017** | 0.677 | 0.998* |
+| memory-growth | **0.768 ± 0.078** | 0.678 ± 0.076 | 0.055 | 0.275 |
+| network-spike | **0.907 ± 0.041** | 0.782 ± 0.025 | 0.735 | 0.000 |
+| oscillating | **0.981 ± 0.013** | 0.735 ± 0.029 | 0.050 | 0.810 |
 
 \* The fixed-threshold rule (`cpu > 80`) overlaps with how `cpu-spike` labels are generated.
 
-The LSTM helps most on temporal patterns such as oscillation and gradual growth. A simple per-value z-score is better for isolated spikes. False-positive rate on a held-out normal run is 2.6% (LSTM) vs 3.0% (z-score).
+The z-score and rolling baselines use the same scaler and the same validation-quantile threshold rule as the LSTM. The LSTM helps most on temporal patterns such as oscillation and gradual growth, while a per-value z-score is better on isolated spikes. False-positive rate on held-out normal runs is about 3.5% for all calibrated detectors.
 
 ## Safety and Privacy
 
@@ -209,7 +209,7 @@ docs/
 - [x] GitHub Actions
 - [x] Reproducible synthetic experiment results
 - [ ] Evaluation on real labelled container incidents
-- [ ] Per-feature error attribution in reports
+- [x] Per-feature error attribution in reports
 - [ ] Continuous monitoring mode (collect and score online)
 
 ## Limitations
@@ -218,7 +218,7 @@ docs/
 - High utilisation is not necessarily waste, and anomalies are not necessarily problems.
 - A model trained on one set of containers learns *their* normal behaviour. Scoring very different containers will produce many flags.
 - Collection is polling-based. Each stats call takes about 1–2 s (calls run in parallel), so intervals under about 2 s are not reliable.
-- The z-score baseline beats the LSTM on isolated spikes. The LSTM is not universally better.
+- The z-score baseline beats the LSTM on isolated spikes, so the LSTM is not universally better. Gradual memory growth is detected late, with recall of about 0.65.
 - Diagnostic tool only. It is not an autonomous remediation platform.
 
 ## License

@@ -3,7 +3,7 @@
 Trains the LSTM Autoencoder on a "normal" run and evaluates it, together with
 the baselines, on each anomaly scenario generated with *different* seeds (so
 test noise never repeats training noise). Repeats for several training seeds
-and reports mean and standard deviation.
+and reports mean and standard deviation over (training seed x test run).
 
 Usage:
     python scripts/run_experiment.py [--out experiments] [--seeds 0 1 2]
@@ -27,23 +27,31 @@ TEST_SCENARIOS = ["cpu-spike", "memory-growth", "network-spike", "oscillating"]
 DETECTORS = ["model", "zscore", "threshold", "rolling"]
 
 
-def generate_data(data_dir: Path, n_train: int, n_test: int) -> dict[str, Path]:
+def generate_data(
+    data_dir: Path, n_train: int, n_test: int, test_runs: int
+) -> tuple[Path, dict[str, list[Path]]]:
+    """
+    One normal training run plus ``test_runs`` independent runs per scenario.
+
+    A held-out ``normal`` scenario measures the false-positive rate on clean
+    data. Every run has its own seed, distinct from the training seed.
+    """
     data_dir.mkdir(parents=True, exist_ok=True)
-    paths = {"train": data_dir / "train_normal.csv"}
+    train_path = data_dir / "train_normal.csv"
     SyntheticDataGenerator(seed=1000).generate_scenario(
         "normal", n_samples=n_train
-    ).to_csv(paths["train"], index=False)
-    for i, scenario in enumerate(TEST_SCENARIOS):
-        paths[scenario] = data_dir / f"test_{scenario}.csv"
-        SyntheticDataGenerator(seed=2000 + i).generate_scenario(
-            scenario, n_samples=n_test
-        ).to_csv(paths[scenario], index=False)
-    # a held-out normal run measures the false-positive rate on clean data
-    paths["normal"] = data_dir / "test_normal.csv"
-    SyntheticDataGenerator(seed=3000).generate_scenario(
-        "normal", n_samples=n_test
-    ).to_csv(paths["normal"], index=False)
-    return paths
+    ).to_csv(train_path, index=False)
+
+    test_paths: dict[str, list[Path]] = {}
+    for i, scenario in enumerate([*TEST_SCENARIOS, "normal"]):
+        test_paths[scenario] = []
+        for run in range(test_runs):
+            path = data_dir / f"test_{scenario}_run{run}.csv"
+            SyntheticDataGenerator(seed=2000 + 100 * i + run).generate_scenario(
+                scenario, n_samples=n_test
+            ).to_csv(path, index=False)
+            test_paths[scenario].append(path)
+    return train_path, test_paths
 
 
 def detector_metrics(results: dict) -> dict[str, dict]:
@@ -53,12 +61,12 @@ def detector_metrics(results: dict) -> dict[str, dict]:
 
 
 def summarise(runs: list[dict]) -> dict:
-    """Mean/std of each metric per scenario and detector across seeds."""
+    """Mean/std of each metric per scenario and detector over seeds x test runs."""
     summary: dict = {}
     for scenario in [*TEST_SCENARIOS, "normal"]:
         summary[scenario] = {}
         for det in DETECTORS:
-            per_seed = [r["scenarios"][scenario][det] for r in runs]
+            per_seed = [m[det] for r in runs for m in r["scenarios"][scenario]]
             summary[scenario][det] = {
                 key: {
                     "mean": float(np.mean([m[key] for m in per_seed])),
@@ -101,15 +109,20 @@ def main():
     parser.add_argument("--n-train", type=int, default=3000)
     parser.add_argument("--n-test", type=int, default=1000)
     parser.add_argument("--epochs", type=int, default=50)
+    parser.add_argument(
+        "--test-runs", type=int, default=3, help="independent test runs per scenario"
+    )
     args = parser.parse_args()
 
-    paths = generate_data(args.out / "data", args.n_train, args.n_test)
+    train_path, test_paths = generate_data(
+        args.out / "data", args.n_train, args.n_test, args.test_runs
+    )
     runs = []
     for seed in args.seeds:
         model_dir = args.out / f"model_seed{seed}"
         start = time.perf_counter()
         train_results = train_model(
-            paths["train"],
+            train_path,
             model_dir,
             epochs=args.epochs,
             seed=seed,
@@ -118,11 +131,14 @@ def main():
         )
         train_seconds = time.perf_counter() - start
         scenarios, latency = {}, []
-        for scenario in [*TEST_SCENARIOS, "normal"]:
-            results = evaluate_model(paths[scenario], model_dir)
-            scenarios[scenario] = detector_metrics(results)
-            scenarios[scenario]["prevalence"] = results["anomaly_prevalence"]
-            latency.append(results["inference_ms_per_window"])
+        for scenario, paths in test_paths.items():
+            scenarios[scenario] = []
+            for path in paths:
+                results = evaluate_model(path, model_dir)
+                metrics = detector_metrics(results)
+                metrics["prevalence"] = results["anomaly_prevalence"]
+                scenarios[scenario].append(metrics)
+                latency.append(results["inference_ms_per_window"])
         runs.append(
             {
                 "seed": seed,
@@ -138,7 +154,10 @@ def main():
         )
 
     summary = summarise(runs)
-    prevalence = {s: runs[0]["scenarios"][s]["prevalence"] for s in summary}
+    prevalence = {
+        s: float(np.mean([m["prevalence"] for m in runs[0]["scenarios"][s]]))
+        for s in summary
+    }
     report = {
         "config": vars(args) | {"out": str(args.out)},
         "runs": runs,

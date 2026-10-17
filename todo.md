@@ -2,7 +2,7 @@
 
 ## Done (MVP)
 
-- [x] Test suite passes: `pytest` (105 unit tests, ~2 s, no Docker/GPU/network)
+- [x] Test suite passes: `pytest` (109 unit tests, ~2 s, no Docker/GPU/network)
 - [x] Ruff lint + format clean
 - [x] End-to-end experiment script: `scripts/run_experiment.py`
 - [x] README rewritten against the actual CLI (commands verified)
