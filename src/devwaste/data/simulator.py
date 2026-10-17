@@ -138,7 +138,9 @@ class SyntheticDataGenerator:
             mask[start : start + length] = True
         return mask
 
-    def _inject_cpu_spikes(self, rng: np.random.Generator, df: pd.DataFrame) -> np.ndarray:
+    def _inject_cpu_spikes(
+        self, rng: np.random.Generator, df: pd.DataFrame
+    ) -> np.ndarray:
         """Short bursts of near-saturated CPU (~5% of samples)."""
         mask = self._burst_mask(rng, len(df), 0.05, 2, 6)
         df.loc[mask, "cpu_percent"] = np.clip(rng.normal(90, 5, mask.sum()), 75, 100)

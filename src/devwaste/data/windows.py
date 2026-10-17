@@ -69,8 +69,12 @@ class WindowGenerator:
 
         if metadata is not None:
             if "timestamp" in metadata.columns:
-                window_meta_dict["start_timestamp"] = metadata["timestamp"].to_numpy()[starts]
-                window_meta_dict["end_timestamp"] = metadata["timestamp"].to_numpy()[ends - 1]
+                window_meta_dict["start_timestamp"] = metadata["timestamp"].to_numpy()[
+                    starts
+                ]
+                window_meta_dict["end_timestamp"] = metadata["timestamp"].to_numpy()[
+                    ends - 1
+                ]
             for col in ("container_id", "container_name", "run_id", "scenario"):
                 if col in metadata.columns:
                     window_meta_dict[col] = metadata[col].to_numpy()[starts]
@@ -157,7 +161,9 @@ class WindowGenerator:
 
         return self.create_windows_by_series(X, df, y)
 
-    def windows_from_points(self, point_values: np.ndarray, df: pd.DataFrame) -> np.ndarray:
+    def windows_from_points(
+        self, point_values: np.ndarray, df: pd.DataFrame
+    ) -> np.ndarray:
         """
         Aggregate point-level values to windows (max over each window).
 

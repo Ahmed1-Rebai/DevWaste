@@ -8,7 +8,9 @@ import pandas as pd
 from devwaste.data.features import FeatureEngineer, series_keys
 
 
-def load_dataset(path: Path, feature_engineer: FeatureEngineer | None = None) -> pd.DataFrame:
+def load_dataset(
+    path: Path, feature_engineer: FeatureEngineer | None = None
+) -> pd.DataFrame:
     """
     Load a metrics CSV, validate its schema, and clean it.
 
@@ -63,7 +65,9 @@ def chronological_split(
     keys = series_keys(df)
     if keys:
         position = df.groupby(keys, sort=False, dropna=False).cumcount()
-        size = df.groupby(keys, sort=False, dropna=False)[df.columns[0]].transform("size")
+        size = df.groupby(keys, sort=False, dropna=False)[df.columns[0]].transform(
+            "size"
+        )
     else:
         position = pd.Series(np.arange(len(df)), index=df.index)
         size = pd.Series(len(df), index=df.index)
