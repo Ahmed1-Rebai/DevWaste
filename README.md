@@ -223,4 +223,4 @@ docs/
 
 ## License
 
-MIT (as declared in `pyproject.toml`). Add a `LICENSE` file before distributing.
+MIT. See [LICENSE](LICENSE).
