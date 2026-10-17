@@ -163,3 +163,17 @@ class TestDataset:
                 train[train["run_id"] == run]["timestamp"].max()
                 < val[val["run_id"] == run]["timestamp"].min()
             )
+
+
+def test_scale_floor_for_near_constant_feature():
+    """A tiny level shift in a near-constant feature stays a small z-score."""
+    df = make_df(100)
+    df["memory_percent"] = 2.9 + np.random.default_rng(0).normal(0, 0.01, 100)
+    engineer = FeatureEngineer()
+    engineer.fit(df)
+
+    shifted = df.assign(memory_percent=df["memory_percent"] + 0.8)
+    z = engineer.transform(shifted)[:, engineer.feature_names.index("memory_percent")]
+
+    assert engineer.get_state()["scaler_scale"][1] == 1.0
+    assert np.abs(z).max() < 1.5

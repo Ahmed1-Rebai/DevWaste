@@ -4,7 +4,12 @@ import numpy as np
 import pandas as pd
 from sklearn.preprocessing import StandardScaler
 
-from devwaste.config import FEATURE_COLUMNS, LOG_FEATURES, SERIES_KEYS
+from devwaste.config import (
+    FEATURE_COLUMNS,
+    LOG_FEATURES,
+    MIN_FEATURE_SCALE,
+    SERIES_KEYS,
+)
 
 COUNTER_COLUMNS = [
     "network_rx_bytes",
@@ -103,7 +108,12 @@ class FeatureEngineer:
         return values
 
     def fit(self, df: pd.DataFrame):
-        """Fit scaler on data. Call this on the training split only."""
+        """
+        Fit scaler on data. Call this on the training split only.
+
+        Each feature's scale is floored at ``MIN_FEATURE_SCALE`` so that
+        near-constant training features do not exaggerate small shifts.
+        """
         is_valid, missing = self.validate_schema(df)
         if not is_valid:
             raise ValueError(f"Missing required feature columns: {missing}")
@@ -111,6 +121,9 @@ class FeatureEngineer:
         self.feature_names = self.get_feature_columns()
         self.log_features = [f for f in self.feature_names if f in LOG_FEATURES]
         self.scaler.fit(self._prepare(df, self.feature_names))
+        floor = np.array([MIN_FEATURE_SCALE.get(f, 0.0) for f in self.feature_names])
+        self.scaler.scale_ = np.maximum(self.scaler.scale_, floor)
+        self.scaler.var_ = self.scaler.scale_**2
         self.is_fitted = True
 
     def transform(self, df: pd.DataFrame) -> np.ndarray:

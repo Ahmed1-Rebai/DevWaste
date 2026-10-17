@@ -41,6 +41,19 @@ LOG_FEATURES: Final = [
     "block_write_bytes",
 ]
 
+# Minimum per-feature scale after preprocessing. A feature that is nearly
+# constant during training would otherwise turn a harmless small level shift
+# into an extreme z-score. Percent features: 1 percentage point. Byte
+# features (log1p space): 0.1, i.e. roughly a 10% change.
+MIN_FEATURE_SCALE: Final = {
+    "cpu_percent": 1.0,
+    "memory_percent": 1.0,
+    "network_rx_bytes": 0.1,
+    "network_tx_bytes": 0.1,
+    "block_read_bytes": 0.1,
+    "block_write_bytes": 0.1,
+}
+
 # Columns identifying one independent time series. Windows never cross
 # series boundaries.
 SERIES_KEYS: Final = ["container_id", "run_id"]
