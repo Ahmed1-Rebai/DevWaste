@@ -71,6 +71,29 @@ class TestTraining:
         with pytest.raises(ValueError, match="Validation split too short"):
             train_model(path, tmp_path / "m", window_size=8, epochs=1, log=None)
 
+    def test_train_with_evt_threshold(self, tmp_path, normal_csv):
+        from devwaste.models.train import calibrate_evt_threshold
+
+        # Direct function test
+        errors = np.random.default_rng(42).exponential(scale=1.0, size=200)
+        thresh_evt = calibrate_evt_threshold(
+            errors, initial_quantile=0.90, target_quantile=0.95
+        )
+        assert thresh_evt > np.quantile(errors, 0.90)
+
+        # Training integration
+        results = train_model(
+            normal_csv,
+            tmp_path / "evt_model",
+            window_size=8,
+            epochs=1,
+            threshold_method="evt",
+            device="cpu",
+            log=None,
+        )
+        assert "evt" in results["threshold_method"]
+        assert results["threshold"] > 0
+
 
 class TestArtifacts:
     def test_roundtrip_reproduces_scores(self, trained_model):

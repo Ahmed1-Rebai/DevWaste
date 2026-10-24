@@ -246,6 +246,11 @@ def train(
         max=1.0,
         help="Quantile of normal validation errors used as threshold",
     ),
+    threshold_method: str = typer.Option(
+        "quantile",
+        "--threshold-method",
+        help="Calibration method: 'quantile' or 'evt' (Extreme Value Theory / POT)",
+    ),
     validation_split: float = typer.Option(
         0.2,
         "--validation-split",
@@ -277,6 +282,7 @@ def train(
             batch_size=batch_size,
             learning_rate=learning_rate,
             threshold_quantile=threshold_quantile,
+            threshold_method=threshold_method,
             validation_split=validation_split,
             seed=seed,
             device=device,

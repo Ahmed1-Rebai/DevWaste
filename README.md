@@ -106,7 +106,7 @@ devwaste evaluate --data data/test.csv --model artifacts/ --output reports/eval.
 
 Scenarios: `normal`, `cpu-spike`, `memory-growth`, `network-spike`, `oscillating`. Every row carries `label`, `scenario`, `run_id`, `container_id`, and `container_name`.
 
-Useful `train` options include `--window-size`, `--hidden-dim`, `--num-layers`, `--epochs`, `--threshold-quantile`, `--validation-split`, `--seed`, and `--device cpu|cuda`. Run `devwaste train --help` for the full list.
+Useful `train` options include `--window-size`, `--hidden-dim`, `--num-layers`, `--epochs`, `--threshold-quantile`, `--threshold-method quantile|evt`, `--validation-split`, `--seed`, and `--device cpu|cuda`. Run `devwaste train --help` for the full list.
 
 ### Real Docker metrics
 

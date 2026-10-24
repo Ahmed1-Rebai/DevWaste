@@ -67,6 +67,61 @@ def reconstruction_errors(
     return feature_errors(model, X_windows, batch_size).mean(axis=1)
 
 
+def calibrate_evt_threshold(
+    errors: np.ndarray,
+    initial_quantile: float = 0.90,
+    target_quantile: float = 0.95,
+) -> float:
+    """
+    Calibrate threshold using Extreme Value Theory (Peaks-Over-Threshold / GPD).
+
+    Fits a Generalized Pareto Distribution to the tail excesses above an
+    initial quantile u, then extrapolates the extreme threshold at
+    target_quantile.
+
+    Args:
+        errors: 1D array of validation reconstruction errors
+        initial_quantile: Quantile used as the POT base threshold u
+        target_quantile: Desired tail quantile for anomaly threshold
+
+    Returns:
+        Estimated threshold float
+    """
+    errors = np.asarray(errors, dtype=float)
+    if len(errors) < 10:
+        return float(np.quantile(errors, target_quantile))
+
+    u = float(np.quantile(errors, initial_quantile))
+    excesses = errors[errors > u] - u
+    n = len(errors)
+    n_u = len(excesses)
+
+    if n_u < 5:
+        return float(np.quantile(errors, target_quantile))
+
+    mean_y = float(np.mean(excesses))
+    var_y = float(np.var(excesses, ddof=1))
+
+    if var_y <= 1e-12:
+        return float(np.quantile(errors, target_quantile))
+
+    gamma = float(np.clip(0.5 * (mean_y**2 / var_y - 1.0), -0.5, 0.5))
+    sigma = float(0.5 * mean_y * (mean_y**2 / var_y + 1.0))
+
+    if sigma <= 0:
+        return float(np.quantile(errors, target_quantile))
+
+    tail_prob = max(1.0 - target_quantile, 1e-6)
+    ratio = (n / n_u) * tail_prob
+
+    if abs(gamma) < 1e-4:
+        z_q = u - sigma * np.log(ratio)
+    else:
+        z_q = u + (sigma / gamma) * (ratio ** (-gamma) - 1.0)
+
+    return float(max(z_q, u))
+
+
 def train_model(
     data_path: Path,
     output_dir: Path,
@@ -77,6 +132,7 @@ def train_model(
     batch_size: int = DEFAULT_BATCH_SIZE,
     learning_rate: float = DEFAULT_LEARNING_RATE,
     threshold_quantile: float = DEFAULT_THRESHOLD_QUANTILE,
+    threshold_method: str = "quantile",
     validation_split: float = 0.2,
     early_stopping_patience: int = 10,
     seed: int = DEFAULT_SEED,
@@ -227,7 +283,17 @@ def train_model(
     model.load_state_dict(best_state)
 
     val_errors = reconstruction_errors(model, X_val)
-    threshold = float(np.quantile(val_errors, threshold_quantile))
+    if threshold_method == "evt":
+        threshold = calibrate_evt_threshold(
+            val_errors,
+            initial_quantile=min(0.90, threshold_quantile),
+            target_quantile=threshold_quantile,
+        )
+        threshold_method_name = f"evt_{threshold_quantile}"
+    else:
+        threshold = float(np.quantile(val_errors, threshold_quantile))
+        threshold_method_name = f"quantile_{threshold_quantile}"
+
     zscore_threshold = ZScoreBaseline().calibrate(X_val, threshold_quantile)
     rolling_scores = window_generator.windows_from_points(
         RollingBaseline(window_size=window_size).score_points(val_df), val_df
@@ -235,13 +301,13 @@ def train_model(
     rolling_threshold = float(
         np.quantile(rolling_scores[y_val == 0], threshold_quantile)
     )
-    log(f"Threshold (validation quantile {threshold_quantile}): {threshold:.4f}")
+    log(f"Threshold ({threshold_method_name}): {threshold:.4f}")
 
     results = {
         "final_train_loss": train_losses[-1],
         "best_val_loss": best_val_loss,
         "threshold": threshold,
-        "threshold_method": f"quantile_{threshold_quantile}",
+        "threshold_method": threshold_method_name,
         "n_train_windows": int(len(X_train)),
         "n_val_windows": int(len(X_val)),
         "n_excluded_anomalous_windows": n_excluded,
