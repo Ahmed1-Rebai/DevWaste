@@ -140,3 +140,36 @@ def print_evaluation(console: Console, results: dict[str, Any]):
         "[dim]Diagnostic signal only: a high score means the pattern differs from "
         "training data, not that a container is wasting resources.[/dim]"
     )
+
+
+def print_monitor_round(console: Console, results: list[dict[str, Any]]):
+    """Print streaming monitoring results for a collection round."""
+    if not results:
+        return
+
+    ready = [r for r in results if r.get("status") == "ready"]
+    warming = [r for r in results if r.get("status") == "warming"]
+
+    for r in ready:
+        if r.get("is_anomalous"):
+            m = r["metrics"]
+            console.print(
+                f"[bold red]ALERT[/bold red] container [bold cyan]{r['container_name']}[/bold cyan] "
+                f"({r['container_id'][:12]}) anomalous! "
+                f"Score: [bold red]{r['score']:.4f}[/bold red] (Threshold: {r['threshold']:.4f}) | "
+                f"Driver: [bold yellow]{r['top_feature']}[/bold yellow] ({r['top_feature_share']:.1%}) | "
+                f"CPU: {m['cpu_percent']:.1f}% | Mem: {m['memory_percent']:.1f}%"
+            )
+
+    if not any(r.get("is_anomalous") for r in ready):
+        if ready:
+            max_score = max(r["score"] for r in ready)
+            ts = ready[0]["timestamp"].split(".")[0].replace("T", " ")
+            console.print(
+                f"[dim]{ts} | Monitored {len(ready)} containers | All normal (max score: {max_score:.4f})[/dim]"
+            )
+        elif warming:
+            ts = warming[0]["timestamp"].split(".")[0].replace("T", " ")
+            console.print(
+                f"[dim]{ts} | Warming up buffers for {len(warming)} container(s)...[/dim]"
+            )

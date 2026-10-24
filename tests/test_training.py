@@ -141,7 +141,10 @@ class TestEvaluation:
         assert results["recovery_margin"] == 5.0
         assert results["n_recovery_windows_excluded"] >= 0
         assert "model_metrics" in results
-        for metrics in [results["model_metrics"], *results["baseline_metrics"].values()]:
+        for metrics in [
+            results["model_metrics"],
+            *results["baseline_metrics"].values(),
+        ]:
             assert 0 <= metrics["precision"] <= 1
             assert 0 <= metrics["recall"] <= 1
 

@@ -37,7 +37,15 @@ def test_help_lists_commands():
     result = runner.invoke(app, ["--help"])
 
     assert result.exit_code == 0
-    for command in ("scan", "collect", "simulate", "train", "evaluate", "cleanup"):
+    for command in (
+        "scan",
+        "collect",
+        "simulate",
+        "train",
+        "evaluate",
+        "monitor",
+        "cleanup",
+    ):
         assert command in result.output
 
 
@@ -151,6 +159,50 @@ def test_evaluate_missing_model(tmp_path, normal_csv):
     )
 
     assert result.exit_code == 1
+
+
+def test_monitor_missing_model(tmp_path):
+    result = runner.invoke(app, ["monitor", "--model", str(tmp_path / "nope")])
+    assert result.exit_code == 1
+
+
+def test_monitor_mock_docker(tmp_path, trained_model, mock_collector):
+    alerts_file = tmp_path / "alerts.jsonl"
+    with patch("devwaste.cli.time.sleep"):
+        result = runner.invoke(
+            app,
+            [
+                "monitor",
+                "--model",
+                str(trained_model),
+                "--interval",
+                "1",
+                "--duration",
+                "2",
+                "--output",
+                str(alerts_file),
+            ],
+        )
+    assert result.exit_code == 0, result.output
+    assert "Starting real-time monitoring" in result.output
+
+
+def test_monitor_json(trained_model, mock_collector):
+    with patch("devwaste.cli.time.sleep"):
+        result = runner.invoke(
+            app,
+            [
+                "monitor",
+                "--model",
+                str(trained_model),
+                "--interval",
+                "1",
+                "--duration",
+                "2",
+                "--json",
+            ],
+        )
+    assert result.exit_code == 0, result.output
 
 
 def test_scan_json(mock_collector):

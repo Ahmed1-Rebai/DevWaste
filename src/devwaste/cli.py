@@ -353,6 +353,122 @@ def evaluate(
 
 
 @app.command()
+def monitor(
+    model: Path = typer.Option(
+        DEFAULT_ARTIFACTS_DIR, "--model", help="Model artifacts directory"
+    ),
+    interval: int = typer.Option(
+        DEFAULT_COLLECTION_INTERVAL,
+        "--interval",
+        min=1,
+        help="Seconds between collection and scoring rounds",
+    ),
+    duration: int | None = typer.Option(
+        None,
+        "--duration",
+        min=1,
+        help="Total monitoring time in seconds (default: run until stopped)",
+    ),
+    db: Path | None = typer.Option(
+        None, "--db", help="Optional SQLite database to persist metrics"
+    ),
+    output: Path | None = typer.Option(
+        None,
+        "--output",
+        help="Optional file path to append anomaly alerts/events as JSON lines",
+    ),
+    consecutive: int = typer.Option(
+        1,
+        "--consecutive",
+        min=1,
+        help="Consecutive anomalous windows required for an alert",
+    ),
+    threshold_multiplier: float = typer.Option(
+        1.0,
+        "--threshold-multiplier",
+        min=0.1,
+        help="Multiplier on the model threshold",
+    ),
+    json_output: bool = typer.Option(
+        False, "--json", help="Stream alerts and rounds in JSON format"
+    ),
+):
+    """Monitor running Docker containers in real-time with a trained model."""
+    from devwaste.models.monitor import OnlineMonitor
+    from devwaste.reporting.reports import print_monitor_round
+    from devwaste.storage.sqlite_store import SQLiteStore
+
+    if not model.is_dir():
+        err_console.print(f"[red]Error: Model directory not found: {model}[/red]")
+        raise typer.Exit(1)
+
+    collector = _docker_client_or_exit()
+
+    try:
+        online_mon = OnlineMonitor(
+            model_dir=model,
+            threshold_multiplier=threshold_multiplier,
+            consecutive=consecutive,
+        )
+    except (ValueError, FileNotFoundError) as e:
+        err_console.print(f"[red]Error loading model: {e}[/red]")
+        raise typer.Exit(1) from e
+
+    if output:
+        output.parent.mkdir(parents=True, exist_ok=True)
+
+    storage = SQLiteStore(db) if db else None
+    start_time = time.monotonic()
+
+    if not json_output:
+        console.print(
+            f"Starting real-time monitoring with model {model} (interval: {interval}s, "
+            f"window: {online_mon.window_size}, threshold: {online_mon.threshold:.4f})"
+        )
+        console.print("Press Ctrl+C to stop.")
+
+    try:
+        while True:
+            if duration is not None and (time.monotonic() - start_time) >= duration:
+                break
+            round_start = time.monotonic()
+            metrics = collector.collect_all_metrics(running_only=True)
+            if storage and metrics:
+                storage.save_metrics(metrics)
+
+            results = online_mon.process_round(metrics)
+
+            if json_output:
+                for r in results:
+                    if r.get("status") == "ready":
+                        typer.echo(json.dumps(r, default=str))
+            else:
+                print_monitor_round(console, results)
+
+            if output:
+                with output.open("a", encoding="utf-8") as f:
+                    for r in results:
+                        if r.get("is_anomalous"):
+                            f.write(json.dumps(r, default=str) + "\n")
+
+            elapsed = time.monotonic() - round_start
+            sleep_sec = max(0.0, interval - elapsed)
+            if (
+                duration is not None
+                and (time.monotonic() - start_time) + sleep_sec >= duration
+            ):
+                time.sleep(max(0.0, duration - (time.monotonic() - start_time)))
+                break
+            time.sleep(sleep_sec)
+    except KeyboardInterrupt:
+        if not json_output:
+            console.print("\n[yellow]Monitoring stopped by user.[/yellow]")
+    finally:
+        if storage:
+            storage.close()
+
+
+@app.command()
 def cleanup(
     dry_run: bool = typer.Option(
         True,
