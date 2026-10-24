@@ -131,6 +131,20 @@ class TestEvaluation:
         assert results["model_metrics"]["auc"] > 0.5
         assert np.isfinite(results["threshold"])
 
+    def test_evaluation_with_persistence_and_recovery_margin(
+        self, trained_model, cpu_spike_csv
+    ):
+        results = evaluate_model(
+            cpu_spike_csv, trained_model, consecutive=2, recovery_margin=5.0
+        )
+        assert results["consecutive"] == 2
+        assert results["recovery_margin"] == 5.0
+        assert results["n_recovery_windows_excluded"] >= 0
+        assert "model_metrics" in results
+        for metrics in [results["model_metrics"], *results["baseline_metrics"].values()]:
+            assert 0 <= metrics["precision"] <= 1
+            assert 0 <= metrics["recall"] <= 1
+
 
 class TestAttribution:
     def test_feature_errors_match_window_mse(self, trained_model):

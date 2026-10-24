@@ -121,6 +121,23 @@ def test_train_and_evaluate(tmp_path, normal_csv, cpu_spike_csv):
     assert result.exit_code == 0
     assert "model_metrics" in json.loads(result.output)
 
+    result = runner.invoke(
+        app,
+        [
+            "evaluate",
+            "--data",
+            str(cpu_spike_csv),
+            "--model",
+            str(model_dir),
+            "--consecutive",
+            "2",
+            "--recovery-margin",
+            "5.0",
+        ],
+    )
+    assert result.exit_code == 0
+    assert "Persistence filter" in result.output
+
 
 def test_train_missing_file(tmp_path):
     result = runner.invoke(app, ["train", "--data", str(tmp_path / "missing.csv")])

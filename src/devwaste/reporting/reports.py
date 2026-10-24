@@ -81,6 +81,15 @@ def print_evaluation(console: Console, results: dict[str, Any]):
         f"({results['flagged_fraction']:.1%}) at threshold {results['threshold']:.4f}"
     )
     console.print(f"Inference: {results['inference_ms_per_window']:.3f} ms/window")
+    if results.get("consecutive", 1) > 1:
+        console.print(
+            f"Persistence filter: minimum {results['consecutive']} consecutive windows"
+        )
+    if results.get("n_recovery_windows_excluded", 0) > 0:
+        console.print(
+            f"Recovery margin: excluded {results['n_recovery_windows_excluded']} "
+            f"post-incident recovery windows ({results['recovery_margin']}s margin)"
+        )
 
     if results["labelled"]:
         console.print(

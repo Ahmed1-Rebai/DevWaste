@@ -306,6 +306,18 @@ def evaluate(
     top_k: int = typer.Option(
         10, "--top", min=0, help="Number of highest-scoring windows to show"
     ),
+    consecutive: int = typer.Option(
+        1,
+        "--consecutive",
+        min=1,
+        help="Minimum consecutive anomalous windows required for an alert",
+    ),
+    recovery_margin: float = typer.Option(
+        0.0,
+        "--recovery-margin",
+        min=0.0,
+        help="Seconds after an incident to treat as recovery transition",
+    ),
 ):
     """Score data with a trained model; compare against baselines if labelled."""
     from devwaste.models.score import evaluate_model
@@ -319,7 +331,13 @@ def evaluate(
         raise typer.Exit(1)
 
     try:
-        results = evaluate_model(data_path=data, model_dir=model, top_k=top_k)
+        results = evaluate_model(
+            data_path=data,
+            model_dir=model,
+            top_k=top_k,
+            consecutive=consecutive,
+            recovery_margin=recovery_margin,
+        )
     except (ValueError, FileNotFoundError) as e:
         err_console.print(f"[red]Error during evaluation: {e}[/red]")
         raise typer.Exit(1) from e
