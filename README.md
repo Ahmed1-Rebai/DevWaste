@@ -139,6 +139,16 @@ devwaste monitor --model artifacts/ --consecutive 2
 devwaste monitor --model artifacts/ --db data/metrics.db --output alerts.jsonl --json
 ```
 
+### Visual diagnostic reports
+
+```bash
+# Generate a self-contained offline HTML visual report from an evaluation JSON report
+devwaste report --input reports/eval.json --output reports/report.html
+
+# Or evaluate and generate the HTML report directly
+devwaste report --data data/test.csv --model artifacts/ --output reports/report.html
+```
+
 ### Cleanup recommendations
 
 ```bash

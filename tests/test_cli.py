@@ -43,6 +43,7 @@ def test_help_lists_commands():
         "simulate",
         "train",
         "evaluate",
+        "report",
         "monitor",
         "cleanup",
     ):
@@ -145,6 +146,37 @@ def test_train_and_evaluate(tmp_path, normal_csv, cpu_spike_csv):
     )
     assert result.exit_code == 0
     assert "Persistence filter" in result.output
+
+    html_out = tmp_path / "report.html"
+    result = runner.invoke(
+        app,
+        ["report", "--input", str(report), "--output", str(html_out)],
+    )
+    assert result.exit_code == 0
+    assert html_out.exists()
+    assert "<!DOCTYPE html>" in html_out.read_text()
+
+    html_direct = tmp_path / "direct.html"
+    result = runner.invoke(
+        app,
+        [
+            "report",
+            "--data",
+            str(cpu_spike_csv),
+            "--model",
+            str(model_dir),
+            "--output",
+            str(html_direct),
+        ],
+    )
+    assert result.exit_code == 0
+    assert html_direct.exists()
+    assert "LSTM Autoencoder" in html_direct.read_text()
+
+
+def test_report_missing_args():
+    result = runner.invoke(app, ["report"])
+    assert result.exit_code == 1
 
 
 def test_train_missing_file(tmp_path):

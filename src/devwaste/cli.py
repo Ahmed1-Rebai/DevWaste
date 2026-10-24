@@ -353,6 +353,74 @@ def evaluate(
 
 
 @app.command()
+def report(
+    input_file: Path | None = typer.Option(
+        None,
+        "--input",
+        "-i",
+        help="Path to evaluation JSON report produced by 'devwaste evaluate'",
+    ),
+    data: Path | None = typer.Option(
+        None, "--data", help="Data CSV to score and report"
+    ),
+    model: Path = typer.Option(
+        DEFAULT_ARTIFACTS_DIR, "--model", help="Model artifacts directory"
+    ),
+    output: Path = typer.Option(
+        Path("reports/report.html"), "--output", "-o", help="Output HTML file path"
+    ),
+    consecutive: int = typer.Option(
+        1, "--consecutive", min=1, help="Consecutive anomalous windows required"
+    ),
+    recovery_margin: float = typer.Option(
+        0.0, "--recovery-margin", min=0.0, help="Recovery margin in seconds"
+    ),
+):
+    """Generate a self-contained offline HTML visual diagnostic report."""
+    from devwaste.models.score import evaluate_model
+    from devwaste.reporting.html_report import write_html_report
+
+    if input_file is not None:
+        if not input_file.exists():
+            err_console.print(f"[red]Error: Input file not found: {input_file}[/red]")
+            raise typer.Exit(1)
+        try:
+            results = json.loads(input_file.read_text(encoding="utf-8"))
+        except Exception as e:
+            err_console.print(f"[red]Error parsing JSON input: {e}[/red]")
+            raise typer.Exit(1) from e
+    elif data is not None:
+        if not data.exists():
+            err_console.print(f"[red]Error: Data file not found: {data}[/red]")
+            raise typer.Exit(1)
+        if not model.is_dir():
+            err_console.print(f"[red]Error: Model directory not found: {model}[/red]")
+            raise typer.Exit(1)
+        try:
+            results = evaluate_model(
+                data_path=data,
+                model_dir=model,
+                consecutive=consecutive,
+                recovery_margin=recovery_margin,
+            )
+        except Exception as e:
+            err_console.print(f"[red]Error during evaluation: {e}[/red]")
+            raise typer.Exit(1) from e
+    else:
+        err_console.print(
+            "[red]Error: Must provide either --input <report.json> or --data <data.csv>[/red]"
+        )
+        raise typer.Exit(1)
+
+    try:
+        write_html_report(results, output)
+        console.print(f"[green]Visual diagnostic report written to {output}[/green]")
+    except Exception as e:
+        err_console.print(f"[red]Error generating HTML report: {e}[/red]")
+        raise typer.Exit(1) from e
+
+
+@app.command()
 def monitor(
     model: Path = typer.Option(
         DEFAULT_ARTIFACTS_DIR, "--model", help="Model artifacts directory"
