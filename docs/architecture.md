@@ -37,6 +37,13 @@ flowchart TD
         R --> OUT[Rich tables / JSON report]
     end
 
+    subgraph Monitor["Real-time monitoring"]
+        A -->|streaming rounds| MON[OnlineMonitor]
+        ART --> MON
+        MON -->|FIFO window queues per container| INF[LSTM inference]
+        INF -->|persistence filter| ALERTS[Terminal / JSONL alerts]
+    end
+
     A -->|list/inspect only| CA[CleanupAdvisor] --> REC[Dry-run recommendations]
 ```
 
@@ -118,6 +125,15 @@ All RNGs (Python, NumPy, torch, DataLoader shuffling) are seeded, so repeated CP
 
   Point-level scores and rules are aggregated to windows by max.
 - **Attribution:** per-feature squared error averaged over the window. The feature with the largest share is reported for each top window, and flagged windows are counted by that feature.
+- **Recovery Margin & Persistence:** `--recovery-margin` excludes post-incident cooldown transitions from benchmark evaluation, and `--consecutive` suppresses transient single-window alerts unless an anomaly persists.
+
+### Online Monitoring (`models/monitor.py`)
+
+- `OnlineMonitor` maintains a per-container FIFO ring buffer of length `window_size`.
+- Incoming cumulative byte counters from Docker are converted to deltas on the fly per container.
+- When a container buffer fills to `window_size`, it is transformed using the loaded `FeatureEngineer` and passed through the PyTorch LSTM Autoencoder.
+- If reconstruction error exceeds the threshold, the anomaly streak increments; when the streak reaches `consecutive`, an alert is issued with the top feature driver.
+- Supports rich streaming terminal alerts, JSON Lines streaming (`--json`), and optional raw persistence to SQLite (`--db`).
 
 ### Reporting (`reporting/reports.py`)
 

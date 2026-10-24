@@ -19,6 +19,7 @@ DevWaste AI learns what *normal* resource usage looks like from time-series wind
 ## Features
 
 - **Docker monitoring** (`scan`, `collect`): CPU %, memory, network I/O, block I/O, and restart count, computed the same way as `docker stats`. Read-only.
+- **Continuous online monitoring** (`monitor`): Streams metrics from running Docker containers, maintains per-container sliding window queues, converts cumulative counters to deltas in real-time, and scores windows against a trained LSTM Autoencoder with per-feature error attribution and persistence filtering.
 - **SQLite storage**: timestamped observations in a local database. Exports to CSV with cumulative byte counters converted to per-interval deltas.
 - **Synthetic scenarios** (`simulate`): reproducible, labelled `normal`, `cpu-spike`, `memory-growth`, `network-spike`, and `oscillating` runs.
 - **Leakage-safe preprocessing**: chronological split per series *before* windowing, a scaler fitted on training data only, and windows that never span two containers or runs.
@@ -125,6 +126,19 @@ devwaste evaluate --data data/collected_later.csv --model artifacts/real
 
 The first collection round of each container is used up by the counter-to-delta conversion. For training, each container needs at least about `window-size / validation-split` rows, which is 50 with the defaults, so the validation slice can hold one window. With `--interval 5`, that is roughly 5 minutes of collection. Scoring needs only `window-size` rows per container.
 
+### Continuous online monitoring
+
+```bash
+# Monitor running containers in real time with rich terminal alerts
+devwaste monitor --model artifacts/ --interval 5
+
+# Require 2 consecutive anomalous windows to confirm alerts (filters transient jitter)
+devwaste monitor --model artifacts/ --consecutive 2
+
+# Stream alerts to JSON Lines and persist raw metrics to SQLite
+devwaste monitor --model artifacts/ --db data/metrics.db --output alerts.jsonl --json
+```
+
 ### Cleanup recommendations
 
 ```bash
@@ -197,7 +211,7 @@ src/devwaste/
   collectors/            Docker metrics collector (read-only)
   storage/               SQLite persistence
   data/                  Simulator, cleaning/scaling, dataset split, windows
-  models/                LSTM AE, training, scoring, baselines, artifacts
+  models/                LSTM AE, training, scoring, baselines, artifacts, online monitor
   evaluation/            Metrics
   reporting/             Terminal/JSON report rendering
   safety/                Read-only cleanup advisor
@@ -223,7 +237,7 @@ docs/
 - [x] Controlled incident experiment in a real container
 - [ ] Evaluation on real (non-injected) incidents
 - [x] Per-feature error attribution in reports
-- [ ] Continuous monitoring mode (collect and score online)
+- [x] Continuous monitoring mode (collect and score online)
 
 ## Limitations
 
