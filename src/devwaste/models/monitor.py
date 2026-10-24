@@ -27,6 +27,7 @@ class OnlineMonitor:
         model_dir: Path,
         threshold_multiplier: float = 1.0,
         consecutive: int = 1,
+        adaptive_rate: float = 0.0,
     ):
         """
         Initialize the monitor with a trained model.
@@ -35,19 +36,34 @@ class OnlineMonitor:
             model_dir: Directory containing trained model artifacts
             threshold_multiplier: Multiplier on the calibrated threshold
             consecutive: Number of consecutive anomalous windows required for alert
+            adaptive_rate: Exponential adaptation rate for benign drift on normal windows (0.0 to disable)
         """
         self.artifacts = ModelArtifacts.load(model_dir)
         self.feature_engineer = FeatureEngineer()
         self.feature_engineer.set_state(self.artifacts.feature_engineer_state)
         self.model = self.artifacts.build_model()
 
-        self.threshold = float(self.artifacts.threshold) * threshold_multiplier
+        self.base_threshold = float(self.artifacts.threshold) * threshold_multiplier
+        self.threshold = self.base_threshold
         self.window_size = int(self.artifacts.window_size)
         self.consecutive = max(1, consecutive)
+        self.adaptive_rate = max(0.0, min(0.5, adaptive_rate))
 
         self.prev_metrics: dict[str, ContainerMetric] = {}
         self.window_buffers: dict[str, deque[dict[str, float]]] = {}
         self.streak: dict[str, int] = {}
+        self.ema_normal_error: dict[str, float] = {}
+        self.initial_normal_error: dict[str, float] = {}
+
+    def get_effective_threshold(self, cid: str) -> float:
+        """Return the effective threshold for a container, accounting for adaptive drift."""
+        if self.adaptive_rate <= 0 or cid not in self.ema_normal_error:
+            return self.base_threshold
+
+        init_err = self.initial_normal_error.get(cid, 1e-4)
+        curr_err = self.ema_normal_error[cid]
+        ratio = max(0.8, min(2.0, curr_err / max(init_err, 1e-4)))
+        return self.base_threshold * ratio
 
     def process_metric(self, metric: ContainerMetric) -> dict[str, Any]:
         """
@@ -113,12 +129,21 @@ class OnlineMonitor:
 
         per_feature = feature_errors(self.model, X_window)
         error = float(per_feature.mean())
-        raw_anomalous = bool(error > self.threshold)
+        effective_threshold = self.get_effective_threshold(cid)
+        raw_anomalous = bool(error > effective_threshold)
 
         if raw_anomalous:
             self.streak[cid] += 1
         else:
             self.streak[cid] = 0
+            if self.adaptive_rate > 0:
+                if cid not in self.ema_normal_error:
+                    self.ema_normal_error[cid] = error
+                    self.initial_normal_error[cid] = max(error, 1e-4)
+                else:
+                    self.ema_normal_error[cid] = (
+                        1.0 - self.adaptive_rate
+                    ) * self.ema_normal_error[cid] + self.adaptive_rate * error
 
         is_alert = self.streak[cid] >= self.consecutive
 
@@ -135,7 +160,8 @@ class OnlineMonitor:
             "container_name": metric.container_name,
             "window_size": self.window_size,
             "score": round(error, 4),
-            "threshold": round(self.threshold, 4),
+            "threshold": round(effective_threshold, 4),
+            "base_threshold": round(self.base_threshold, 4),
             "is_anomalous": is_alert,
             "raw_anomalous": raw_anomalous,
             "streak": self.streak[cid],

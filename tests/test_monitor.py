@@ -174,3 +174,39 @@ def test_online_monitor_persistence_filter(trained_model, normal_csv):
     )
     assert res2["streak"] == 2
     assert res2["is_anomalous"] is True
+
+
+def test_online_monitor_adaptive_recalibration(trained_model, normal_csv):
+    df = pd.read_csv(normal_csv)
+    monitor = OnlineMonitor(model_dir=trained_model, adaptive_rate=0.1)
+    cid = "c_adaptive"
+
+    rx_cum, tx_cum, r_cum, w_cum = 0.0, 0.0, 0.0, 0.0
+    for _, row in df.iloc[:25].iterrows():
+        rx_cum += float(row["network_rx_bytes"])
+        tx_cum += float(row["network_tx_bytes"])
+        r_cum += float(row["block_read_bytes"])
+        w_cum += float(row["block_write_bytes"])
+        metric = ContainerMetric(
+            timestamp=str(row["timestamp"]),
+            container_id=cid,
+            container_name="test-container",
+            state="running",
+            cpu_percent=float(row["cpu_percent"]),
+            memory_usage=float(row["memory_usage"]),
+            memory_limit=float(row["memory_limit"]),
+            memory_percent=float(row["memory_percent"]),
+            network_rx_bytes=rx_cum,
+            network_tx_bytes=tx_cum,
+            block_read_bytes=r_cum,
+            block_write_bytes=w_cum,
+            restart_count=0,
+        )
+        monitor.process_metric(metric)
+
+    # Check that EMA of normal errors was updated
+    assert cid in monitor.ema_normal_error
+    eff_thresh = monitor.get_effective_threshold(cid)
+    assert eff_thresh > 0
+    # Safe bounds check: threshold ratio must stay within [0.8, 2.0]
+    assert 0.8 * monitor.base_threshold <= eff_thresh <= 2.0 * monitor.base_threshold

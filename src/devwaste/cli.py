@@ -463,6 +463,13 @@ def monitor(
         min=0.1,
         help="Multiplier on the model threshold",
     ),
+    adaptive_rate: float = typer.Option(
+        0.0,
+        "--adaptive-rate",
+        min=0.0,
+        max=0.5,
+        help="Exponential adaptation rate for threshold drift on normal windows (0.0 to disable)",
+    ),
     json_output: bool = typer.Option(
         False, "--json", help="Stream alerts and rounds in JSON format"
     ),
@@ -483,6 +490,7 @@ def monitor(
             model_dir=model,
             threshold_multiplier=threshold_multiplier,
             consecutive=consecutive,
+            adaptive_rate=adaptive_rate,
         )
     except (ValueError, FileNotFoundError) as e:
         err_console.print(f"[red]Error loading model: {e}[/red]")
