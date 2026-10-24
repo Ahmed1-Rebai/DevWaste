@@ -3,7 +3,7 @@
 import numpy as np
 import pandas as pd
 
-from devwaste.config import FEATURE_COLUMNS
+from devwaste.config import FEATURE_COLUMNS, LOG_FEATURES, MIN_FEATURE_SCALE
 from devwaste.data.features import series_keys
 
 BASELINE_METHODS = ["zscore", "threshold", "rolling"]
@@ -117,9 +117,15 @@ class RollingBaseline:
             if feature not in df.columns:
                 continue
             series = df[feature].astype(float)
+            if feature in LOG_FEATURES:
+                series = np.log1p(series)
             past = series.shift(1).rolling(window=self.window_size, min_periods=2)
-            mean, std = past.mean(), past.std().replace(0, np.nan)
-            z = ((series - mean) / std).abs().fillna(0).to_numpy()
+            mean = past.mean()
+            scale_floor = MIN_FEATURE_SCALE.get(feature, 1.0)
+            std = np.maximum(past.std().fillna(0.0), scale_floor)
+            valid_mask = past.count() >= 2
+            z = ((series - mean) / std).abs()
+            z = z.where(valid_mask, 0.0).fillna(0.0).to_numpy()
             scores = np.maximum(scores, z)
         return scores
 

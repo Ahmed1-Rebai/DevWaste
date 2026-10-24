@@ -70,6 +70,14 @@ class TestBaselines:
         assert preds[-1] == 1
         assert preds[:-1].sum() <= 2
 
+    def test_rolling_baseline_flags_jump_from_zero_variance(self):
+        values = np.r_[np.zeros(20), 80.0]
+        df = pd.DataFrame({"cpu_percent": values})
+
+        preds = RollingBaseline(window_size=10, features=["cpu_percent"]).predict(df)
+
+        assert preds[-1] == 1
+
     def test_rolling_baseline_per_series(self):
         """A level difference between two containers is not an anomaly."""
         df = pd.DataFrame(
