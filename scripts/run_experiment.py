@@ -23,7 +23,13 @@ from devwaste.data.simulator import SyntheticDataGenerator
 from devwaste.models.score import evaluate_model
 from devwaste.models.train import train_model
 
-TEST_SCENARIOS = ["cpu-spike", "memory-growth", "network-spike", "oscillating"]
+TEST_SCENARIOS = [
+    "cpu-spike",
+    "memory-growth",
+    "network-spike",
+    "oscillating",
+    "subtle-oscillation",
+]
 DETECTORS = ["model", "zscore", "threshold", "rolling"]
 
 

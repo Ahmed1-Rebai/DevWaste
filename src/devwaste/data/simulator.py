@@ -19,7 +19,14 @@ DEFAULT_START = "2024-01-01T00:00:00"
 class SyntheticDataGenerator:
     """Generate reproducible synthetic time-series data."""
 
-    SCENARIOS = ["normal", "cpu-spike", "memory-growth", "network-spike", "oscillating"]
+    SCENARIOS = [
+        "normal",
+        "cpu-spike",
+        "memory-growth",
+        "network-spike",
+        "oscillating",
+        "subtle-oscillation",
+    ]
 
     def __init__(self, seed: int = 42):
         """Initialize generator with random seed."""
@@ -74,6 +81,8 @@ class SyntheticDataGenerator:
             label = self._inject_network_spikes(rng, df)
         elif scenario == "oscillating":
             label = self._inject_oscillation(rng, df)
+        elif scenario == "subtle-oscillation":
+            label = self._inject_subtle_oscillation(rng, df)
 
         df["memory_usage"] = df["memory_percent"] / 100 * MEMORY_LIMIT_BYTES
         df["memory_limit"] = float(MEMORY_LIMIT_BYTES)
@@ -190,6 +199,28 @@ class SyntheticDataGenerator:
             0,
             100,
         )
+        label = np.zeros(n, dtype=int)
+        label[onset:] = 1
+        return label
+
+    @staticmethod
+    def _inject_subtle_oscillation(
+        rng: np.random.Generator, df: pd.DataFrame
+    ) -> np.ndarray:
+        """
+        Subtle harmonic oscillation from 50% of the series.
+
+        Values stay within normal operating range (20% to 55% CPU) so point
+        thresholds (cpu > 80) and raw point z-scores cannot detect it, but
+        the temporal sequence structure is anomalous.
+        """
+        n = len(df)
+        onset = n // 2
+        t = np.arange(n - onset)
+        harmonic = (
+            37.5 + 17.5 * np.sin(2 * np.pi * t / 12) + rng.normal(0, 1.5, n - onset)
+        )
+        df.loc[onset:, "cpu_percent"] = np.clip(harmonic, 0, 100)
         label = np.zeros(n, dtype=int)
         label[onset:] = 1
         return label

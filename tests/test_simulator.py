@@ -53,6 +53,17 @@ class TestSyntheticDataGenerator:
         assert len(df) == 100
         assert df["cpu_percent"].between(0, 100).all()
 
+    def test_generate_subtle_oscillation_scenario(self):
+        """Test subtle oscillation scenario generation."""
+        generator = SyntheticDataGenerator(seed=42)
+        df = generator.generate_scenario("subtle-oscillation", n_samples=100)
+
+        assert len(df) == 100
+        assert df["cpu_percent"].between(0, 100).all()
+        assert df["label"].sum() > 0
+        # Peak values should not saturate or hit extreme threshold 80%
+        assert (df["cpu_percent"] < 75).all()
+
     def test_invalid_scenario_raises_error(self):
         """Test that invalid scenario raises ValueError."""
         generator = SyntheticDataGenerator(seed=42)

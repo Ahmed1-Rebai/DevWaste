@@ -186,7 +186,7 @@ def simulate(
     scenario: str = typer.Option(
         ...,
         "--scenario",
-        help="normal, cpu-spike, memory-growth, network-spike, or oscillating",
+        help="normal, cpu-spike, memory-growth, network-spike, oscillating, or subtle-oscillation",
     ),
     output: Path = typer.Option(..., "--output", help="Output CSV path"),
     n_samples: int = typer.Option(1000, "--n-samples", min=1, help="Number of samples"),
