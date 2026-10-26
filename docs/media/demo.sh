@@ -1,6 +1,17 @@
 #!/usr/bin/env bash
 # Drives a real DevWaste session for recording. Typing is simulated; every command really runs.
-source /mnt/data/project/DevWaste/.venv/bin/activate
+#
+# Usage: docs/media/demo.sh [VENV_DIR]
+#   VENV_DIR  optional virtual environment to activate. If omitted, the currently
+#             active environment is used (`devwaste` must be on PATH).
+# Needs Docker, the FlakeRadar stack, and flakeradar_baseline.csv (from `devwaste collect`)
+# next to this script.
+set -u
+if [ $# -ge 1 ]; then
+  # shellcheck disable=SC1091
+  source "$1/bin/activate" || { echo "cannot activate venv: $1" >&2; exit 1; }
+fi
+command -v devwaste >/dev/null || { echo "devwaste not found; activate a venv or pass its path" >&2; exit 1; }
 cd "$(dirname "$0")"
 PS='\e[1;32mahmed@devbox\e[0m:\e[1;34m~/DevWaste\e[0m$ '
 type_cmd() {
