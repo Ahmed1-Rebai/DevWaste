@@ -1,6 +1,12 @@
 #!/usr/bin/env bash
 # Drives a real DevWaste session for recording. Typing is simulated; every command really runs.
-source /mnt/data/project/DevWaste/.venv/bin/activate
+# Usage: demo.sh [VENV_DIR]
+#   VENV_DIR  optional virtualenv to activate; otherwise the active environment is used.
+if [ -n "${1:-}" ]; then
+  # shellcheck disable=SC1091
+  source "$1/bin/activate" || { echo "cannot activate venv: $1" >&2; exit 1; }
+fi
+command -v devwaste >/dev/null || { echo "devwaste not found; activate a venv or pass its path" >&2; exit 1; }
 cd "$(dirname "$0")"
 PS='\e[1;32mahmed@devbox\e[0m:\e[1;34m~/DevWaste\e[0m$ '
 type_cmd() {
