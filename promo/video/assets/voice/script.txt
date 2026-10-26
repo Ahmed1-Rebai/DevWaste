@@ -1,0 +1,6 @@
+vo-1|Which container is wasting your resources?
+vo-2|A real Docker stack: Postgres, Redpanda, Redis, MLflow and Dagster.
+vo-3|An LSTM autoencoder learns normal behaviour in about eight seconds.
+vo-4|Live monitoring: all normal.
+vo-5|Then a real load spike hits Redis. Only Redis is flagged, and the driver is CPU.
+vo-6|DevWaste AI. Local, no LLMs, diagnostic only.

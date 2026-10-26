@@ -1,0 +1,66 @@
+<template>
+  <style>
+    #root {
+      position: absolute;
+      inset: 0;
+      font-family: "Inter", sans-serif;
+      color: #e6edf3;
+    }
+    #stack-kicker {
+      position: absolute;
+      left: 0;
+      top: 236px;
+      width: 1080px;
+      text-align: center;
+      font-family: "JetBrains Mono", monospace;
+      font-size: 42px;
+      font-weight: 700;
+      color: #7ee787;
+    }
+    #stack-panel {
+      position: absolute;
+      left: 0;
+      top: 360px;
+      width: 1080px;
+      height: 640px;
+      overflow: hidden;
+      background: #171b22;
+      border-top: 2px solid #262c36;
+      border-bottom: 2px solid #262c36;
+    }
+    #stack-cam {
+      position: absolute;
+      left: 0;
+      top: 0;
+      width: 1470px;
+      height: 375px;
+      transform-origin: 0 0;
+    }
+    #stack-cam img {
+      display: block;
+      width: 1470px;
+      height: 375px;
+    }
+  </style>
+  <div id="root" data-composition-id="stack" data-width="1080" data-height="1920">
+    <div id="stack-kicker" class="clip" data-start="0" data-duration="5">$ devwaste scan</div>
+    <div id="stack-panel" class="clip" data-start="0" data-duration="5" data-layout-allow-overflow>
+      <div id="stack-cam">
+        <img id="stack-img" src="assets/scan-table.png" alt="devwaste scan: five FlakeRadar containers" />
+      </div>
+    </div>
+  </div>
+  <script>
+    const tl = gsap.timeline({ paused: true });
+    // Arrive: blur swap from the hook.
+    tl.fromTo("#stack-kicker", { opacity: 0, filter: "blur(8px)" }, { opacity: 1, filter: "blur(0px)", duration: 0.2, ease: "power4.out" }, 0.05);
+    tl.fromTo("#stack-cam", { x: 0, y: 48, scale: 1.45, opacity: 0, filter: "blur(10px)" },
+      { opacity: 1, filter: "blur(0px)", duration: 0.25, ease: "power4.out" }, 0);
+    // Slow pan left to right across the real table (2131 px wide at 1.45x).
+    tl.fromTo("#stack-cam", { x: 0 }, { x: -1052, duration: 4.4, ease: "power1.inOut", immediateRender: false }, 0.3);
+    // Whip up and out into the training output.
+    tl.to("#stack-cam", { y: -260, filter: "blur(14px)", opacity: 0, duration: 0.25, ease: "power3.in" }, 4.75);
+    tl.to("#stack-kicker", { opacity: 0, filter: "blur(8px)", duration: 0.15, ease: "power3.in" }, 4.8);
+    window.__timelines["stack"] = tl;
+  </script>
+</template>

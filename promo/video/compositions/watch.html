@@ -1,0 +1,81 @@
+<template>
+  <style>
+    #root {
+      position: absolute;
+      inset: 0;
+      font-family: "Inter", sans-serif;
+      color: #e6edf3;
+    }
+    #watch-kicker {
+      position: absolute;
+      left: 0;
+      top: 236px;
+      width: 1080px;
+      text-align: center;
+      font-family: "JetBrains Mono", monospace;
+      font-size: 42px;
+      font-weight: 700;
+      color: #7ee787;
+    }
+    #watch-panel {
+      position: absolute;
+      left: 0;
+      top: 360px;
+      width: 1080px;
+      height: 640px;
+      overflow: hidden;
+      background: #171b22;
+      border-top: 2px solid #262c36;
+      border-bottom: 2px solid #262c36;
+    }
+    #watch-cam {
+      position: absolute;
+      left: 0;
+      top: 0;
+      width: 1060px;
+      height: 245px;
+      transform-origin: 0 0;
+    }
+    #watch-cam img {
+      display: block;
+      width: 1060px;
+      height: 245px;
+    }
+    /* Warm-up rows dimmed so the three "All normal" rows lead. */
+    #watch-dim {
+      position: absolute;
+      left: 0;
+      top: 0;
+      width: 1060px;
+      height: 150px;
+      background: rgba(23, 27, 34, 0.62);
+    }
+    #watch-mark {
+      position: absolute;
+      left: 0;
+      top: 150px;
+      width: 4px;
+      height: 92px;
+      background: #7ee787;
+    }
+  </style>
+  <div id="root" data-composition-id="watch" data-width="1080" data-height="1920">
+    <div id="watch-kicker" class="clip" data-start="0" data-duration="4">$ devwaste monitor</div>
+    <div id="watch-panel" class="clip" data-start="0" data-duration="4" data-layout-allow-overflow>
+      <div id="watch-cam">
+        <img id="watch-img" src="assets/monitor-normal.png" alt="devwaste monitor: all normal rounds" />
+        <div id="watch-dim"></div>
+        <div id="watch-mark"></div>
+      </div>
+    </div>
+  </div>
+  <script>
+    const tl = gsap.timeline({ paused: true });
+    gsap.set("#watch-cam", { x: 0, y: 124, scale: 1.6 });
+    tl.fromTo("#watch-dim", { opacity: 0 }, { opacity: 1, duration: 0.4, ease: "power2.out" }, 0.2);
+    tl.fromTo("#watch-mark", { scaleY: 0, transformOrigin: "50% 0%" }, { scaleY: 1, duration: 0.35, ease: "expo.out" }, 0.3);
+    // Read along the "All normal (max score: ...)" rows.
+    tl.fromTo("#watch-cam", { x: 0 }, { x: -616, duration: 3.4, ease: "power1.inOut", immediateRender: false }, 0.4);
+    window.__timelines["watch"] = tl;
+  </script>
+</template>

@@ -1,0 +1,85 @@
+<template>
+  <style>
+    #root {
+      position: absolute;
+      inset: 0;
+      font-family: "Inter", sans-serif;
+      color: #e6edf3;
+    }
+    #end-mark {
+      position: absolute;
+      left: 0;
+      top: 560px;
+      width: 1080px;
+      text-align: center;
+      font-size: 150px;
+      font-weight: 900;
+      letter-spacing: -0.04em;
+      line-height: 1;
+    }
+    #end-mark .ch {
+      display: inline-block;
+    }
+    #end-mark .ai {
+      color: #f85149;
+    }
+    #end-facts {
+      position: absolute;
+      left: 0;
+      top: 780px;
+      width: 1080px;
+      text-align: center;
+      font-size: 54px;
+      font-weight: 700;
+      line-height: 1.3;
+      color: #c9d1d9;
+    }
+    #end-facts .line {
+      display: block;
+    }
+    #end-repo {
+      position: absolute;
+      left: 0;
+      top: 990px;
+      width: 1080px;
+      text-align: center;
+      font-family: "JetBrains Mono", monospace;
+      font-size: 42px;
+      font-weight: 700;
+      color: #7ee787;
+    }
+    #end-license {
+      position: absolute;
+      left: 0;
+      top: 1080px;
+      width: 1080px;
+      text-align: center;
+      font-size: 40px;
+      font-weight: 700;
+      color: #8b949e;
+    }
+  </style>
+  <div id="root" data-composition-id="endcard" data-width="1080" data-height="1920">
+    <div id="end-mark" class="clip" data-start="0" data-duration="5">
+      <span class="ch">D</span><span class="ch">e</span><span class="ch">v</span><span class="ch">W</span><span class="ch">a</span><span class="ch">s</span><span class="ch">t</span><span class="ch">e</span>&nbsp;<span class="ch ai">A</span><span class="ch ai">I</span>
+    </div>
+    <div id="end-facts" class="clip" data-start="0" data-duration="5">
+      <span class="line" id="end-l1">100% local · PyTorch</span>
+      <span class="line" id="end-l2">no LLMs · diagnostic-only</span>
+    </div>
+    <div id="end-repo" class="clip" data-start="0" data-duration="5">github.com/Ahmed1-Rebai/DevWaste</div>
+    <div id="end-license" class="clip" data-start="0" data-duration="5">MIT License</div>
+  </div>
+  <script>
+    const tl = gsap.timeline({ paused: true });
+    // The name lands letter by letter on the impact, then the facts, then the link.
+    tl.fromTo("#end-mark .ch", { opacity: 0.0, filter: "blur(6px)" },
+      { opacity: 1, filter: "blur(0px)", duration: 0.16, stagger: 0.035, ease: "power4.out" }, 0.02);
+    tl.fromTo(["#end-l1", "#end-l2"], { opacity: 0, filter: "blur(6px)" },
+      { opacity: 1, filter: "blur(0px)", duration: 0.18, stagger: 0.12, ease: "power4.out" }, 0.55);
+    tl.fromTo("#end-repo", { opacity: 0, filter: "blur(6px)" },
+      { opacity: 1, filter: "blur(0px)", duration: 0.2, ease: "power4.out" }, 0.95);
+    tl.fromTo("#end-license", { opacity: 0 }, { opacity: 1, duration: 0.25, ease: "power2.out" }, 1.15);
+    window.__timelines["endcard"] = tl;
+  </script>
+</template>

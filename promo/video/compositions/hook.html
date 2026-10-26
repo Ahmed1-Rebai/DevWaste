@@ -1,0 +1,76 @@
+<template>
+  <style>
+    #root {
+      position: absolute;
+      inset: 0;
+      font-family: "Inter", sans-serif;
+      color: #e6edf3;
+    }
+    #hook-title {
+      position: absolute;
+      left: 0;
+      top: 560px;
+      width: 1080px;
+      padding: 0 80px;
+      font-size: 108px;
+      font-weight: 900;
+      line-height: 1.05;
+      letter-spacing: -0.035em;
+      text-align: center;
+    }
+    #hook-title .word {
+      display: inline-block;
+    }
+    #hook-sub {
+      position: absolute;
+      left: 0;
+      top: 1010px;
+      width: 1080px;
+      text-align: center;
+      font-size: 46px;
+      font-weight: 700;
+      color: #8b949e;
+    }
+    #hook-sub .brand {
+      color: #e6edf3;
+    }
+    #hook-sub .ai {
+      color: #f85149;
+    }
+    #hook-sub .word {
+      display: inline-block;
+    }
+  </style>
+  <div id="root" data-composition-id="hook" data-width="1080" data-height="1920">
+    <h1 id="hook-title" class="clip" data-start="0" data-duration="3">
+      <span class="word" id="hook-w1">Which</span>
+      <span class="word" id="hook-w2">container</span>
+      <span class="word" id="hook-w3">is</span>
+      <span class="word" id="hook-w4">wasting</span>
+      <span class="word" id="hook-w5">your</span>
+      <span class="word" id="hook-w6">resources?</span>
+    </h1>
+    <p id="hook-sub" class="clip" data-start="0" data-duration="3">
+      <span class="word brand">DevWaste <span class="ai">AI</span></span>
+      <span class="word">·</span>
+      <span class="word">Deep</span>
+      <span class="word">Learning</span>
+      <span class="word">for</span>
+      <span class="word">Docker</span>
+    </p>
+  </div>
+  <script>
+    const tl = gsap.timeline({ paused: true });
+    // Frame 0 is the thumbnail: the question is already on screen.
+    tl.fromTo("#hook-w4", { color: "#e6edf3" }, { color: "#f85149", duration: 0.3, ease: "power2.inOut" }, 0.45);
+    tl.fromTo(
+      "#hook-sub .word",
+      { opacity: 0, filter: "blur(6px)" },
+      { opacity: 1, filter: "blur(0px)", duration: 0.13, stagger: 0.08, ease: "power4.out" },
+      0.9,
+    );
+    // Blur swap out into the first real screen.
+    tl.to(["#hook-title .word", "#hook-sub .word"], { opacity: 0, filter: "blur(8px)", duration: 0.18, stagger: 0.01, ease: "power3.in" }, 2.78);
+    window.__timelines["hook"] = tl;
+  </script>
+</template>
