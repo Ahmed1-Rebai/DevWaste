@@ -20,7 +20,7 @@ A real session against the FlakeRadar Docker stack (Postgres, Redpanda, Redis, M
 
 - Full terminal recording (28 s): [docs/media/devwaste-demo.mp4](docs/media/devwaste-demo.mp4) (asciinema cast: [docs/media/demo.cast](docs/media/demo.cast), driver script: [docs/media/demo.sh](docs/media/demo.sh))
 - `scan` and `train` output: [docs/media/screenshot-scan-train.png](docs/media/screenshot-scan-train.png)
-- Vertical 28 s clip cut from the same recording: [promo/video/out/devwaste-linkedin-vertical.mp4](promo/video/out/devwaste-linkedin-vertical.mp4) (source in [promo/video/](promo/video/))
+- Vertical 29 s narrated clip cut from the same recording: [promo/video/out/devwaste-linkedin-vertical.mp4](promo/video/out/devwaste-linkedin-vertical.mp4) (source in [promo/video/](promo/video/))
 
 ## Overview
 
