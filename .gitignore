@@ -100,3 +100,25 @@ AGENTS.md
 memory.md
 # Experiment outputs (regenerate with scripts/run_experiment.py)
 /experiments/
+
+# Linters / tools
+.ruff_cache/
+
+# Model artifacts and generated reports
+*.pt
+*.pth
+/reports/
+/model/
+/alerts.jsonl
+
+# Demo recording by-products (docs/media/ itself is tracked)
+docs/media/model/
+docs/media/*.csv
+
+# Node / promo video tooling
+node_modules/
+promo/video/out/*
+!promo/video/out/devwaste-linkedin-vertical.mp4
+promo/video/renders/
+promo/video/snapshots/
+promo/video/.hyperframes/
