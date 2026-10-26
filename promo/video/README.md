@@ -1,6 +1,6 @@
 # DevWaste AI: vertical promo clip
 
-A 28 s, 1080x1920 clip for LinkedIn, built with [HyperFrames](https://hyperframes.heygen.com)
+A 29 s, 1080x1920 narrated clip for LinkedIn, built with [HyperFrames](https://hyperframes.heygen.com)
 (HTML + GSAP rendered to video). Rendered output:
 [`out/devwaste-linkedin-vertical.mp4`](out/devwaste-linkedin-vertical.mp4) (H.264, yuv420p,
 30 fps, AAC). One still per scene is in
@@ -27,7 +27,26 @@ ffmpeg -ss 16.2 -t 5.2 -i ../../docs/media/devwaste-demo.mp4 -vf "crop=920:330:0
 ```
 
 Sound effects (`assets/sfx/`, not committed) are the bundled Pixabay-licensed files from the
-HyperFrames `media-use` skill. There is no music and no voiceover.
+HyperFrames `media-use` skill. There is no music.
+
+## Voiceover
+
+Six narration lines, one per scene, generated locally with Kokoro-82M through
+`npx hyperframes tts` (voice `am_michael`, speed 1.1). The script is in
+[`assets/voice/script.txt`](assets/voice/script.txt) and the WAVs are committed, so a render
+does not need the TTS model. Each line's `data-volume` was set with
+`npx hyperframes normalize-audio --lufs=-16`. The sound effects sit under the voice.
+
+To regenerate a line (needs `pip install kokoro-onnx soundfile`):
+
+```bash
+npx hyperframes tts "Live monitoring: all normal." -v am_michael -s 1.1 -o assets/voice/vo-4.wav
+```
+
+The narration says only what the screen shows: the five containers, LSTM autoencoder,
+about eight seconds of training, all normal, the Redis spike, the CPU driver, and local /
+no LLMs / diagnostic-only. It is 53 words, more than the 25-word limit in the original brief,
+because a descriptive voice was requested afterwards.
 
 ## Scenes
 
@@ -38,7 +57,7 @@ HyperFrames `media-use` skill. There is no music and no voiceover.
 | 8–13 s | `learn.html` | `devwaste train` output, zoom to threshold 3.2925 and "Training complete" |
 | 13–17 s | `watch.html` | `devwaste monitor` "All normal" rounds (max score about 1.4) |
 | 17–24 s | `catch.html` | Live ALERT rows for `flakeradar-redis-1`, then a pan along score 83.2280 and driver `cpu_percent` |
-| 24–28 s | `endcard.html` | Name, facts, repository link, MIT License |
+| 24–29 s | `endcard.html` | Name, facts, repository link, MIT License |
 
 Captions are burned in (`captions.html`) because LinkedIn autoplays muted.
 
@@ -53,4 +72,5 @@ make video
 ```
 
 `make video` installs GSAP locally (`npm install`), copies the four sound effects, runs
-`hyperframes check` and renders to `out/devwaste-linkedin-vertical.mp4`.
+`hyperframes check`, renders, then loudness-normalizes the mix to -16 LUFS / -1.5 dBTP with
+FFmpeg and writes `out/devwaste-linkedin-vertical.mp4`.

@@ -18,9 +18,18 @@
 
 - `hyperframes lint` and `hyperframes check`: 0 errors, 0 warnings (layout, contrast, craft,
   motion, audio).
-- Render: 28.0 s, 1080x1920, H.264 yuv420p, 30 fps, AAC, 5.7 MB.
-- Audio (`hyperframes audio`): -15.4 LUFS integrated, true peak -7.9 dBTP, no clipping; hits at
-  2.9 s, 7.3 s, 12.9 s, 17.0 s and 22.1 s. The sound was measured, not heard.
+- Render: 29.0 s, 1080x1920, H.264 yuv420p, 30 fps, AAC, 6.2 MB.
+- Audio (`hyperframes audio`): -16.2 LUFS integrated, true peak -1.5 dBTP, no clipping.
+  Voice lines start at 0.15, 3.15, 8.1, 13.35, 16.8 and 24.2 s (confirmed by silence
+  detection on the render). Line 5 starts 0.2 s before the cut so "load spike hits Redis"
+  lands as the ALERT rows appear. The sound was measured, not heard, and the narration could
+  not be transcribed here (the Whisper model download is blocked), so listen once before posting.
+
+## Voice
+
+- Local Kokoro (`am_michael`) was used because no HeyGen or ElevenLabs credentials were
+  available. A HeyGen voice (`npx hyperframes auth login`) would sound more natural.
+- The end card was extended by 1 s (now 24–29 s) so the last line finishes before the cut.
 
 ## Weakest shots
 
