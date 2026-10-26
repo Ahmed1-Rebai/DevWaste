@@ -1,0 +1,125 @@
+<template>
+  <style>
+    #root {
+      position: absolute;
+      inset: 0;
+      font-family: "Inter", sans-serif;
+    }
+    #train-label {
+      position: absolute;
+      left: 60px;
+      right: 60px;
+      top: 228px;
+      font-family: "JetBrains Mono", monospace;
+      font-size: 46px;
+      font-weight: 700;
+      color: var(--color-ink, #e6edf3);
+    }
+    #train-label .prompt {
+      color: var(--color-ok, #7ee787);
+    }
+    #train-frame {
+      position: absolute;
+      left: 40px;
+      top: 330px;
+      width: 1000px;
+      height: 680px;
+      border: 2px solid #30363d;
+      border-radius: 18px;
+      overflow: hidden;
+      background: var(--color-ground, #171b22);
+    }
+    #train-cam {
+      position: absolute;
+      left: 0;
+      top: 0;
+      width: 2138px;
+      height: 1078px;
+      transform-origin: 0 0;
+    }
+    #train-cam img {
+      display: block;
+      width: 2138px;
+      height: 1078px;
+    }
+    /* Focus dim and highlight boxes live in screenshot pixel coordinates. */
+    #train-dim {
+      position: absolute;
+      left: 0;
+      top: 0;
+      width: 2138px;
+      height: 598px;
+      background: #171b22;
+    }
+    .train-box {
+      position: absolute;
+      border: 3px solid var(--color-ok, #7ee787);
+      border-radius: 6px;
+    }
+    #train-box-thr {
+      left: 360px;
+      top: 599px;
+      width: 96px;
+      height: 34px;
+    }
+    #train-box-done {
+      left: 6px;
+      top: 631px;
+      width: 240px;
+      height: 34px;
+    }
+    .train-fade {
+      position: absolute;
+      top: 0;
+      bottom: 0;
+      width: 40px;
+    }
+    #train-fade-r {
+      right: 0;
+      background: linear-gradient(270deg, #171b22, rgba(23, 27, 34, 0));
+    }
+  </style>
+  <div id="root" data-composition-id="train" data-width="1080" data-height="1920">
+    <div id="train-label"><span class="prompt">$</span> devwaste train</div>
+    <div id="train-frame" data-layout-allow-overflow>
+      <div id="train-cam">
+        <img
+          id="train-img"
+          src="assets/img/screenshot-scan-train.png"
+          alt="Real devwaste train output: 550/105 windows, threshold 3.2925, training complete"
+        />
+        <div id="train-dim" data-layout-ignore></div>
+        <div class="train-box" id="train-box-thr" data-layout-ignore></div>
+        <div class="train-box" id="train-box-done" data-layout-ignore></div>
+      </div>
+      <div class="train-fade" id="train-fade-r" data-layout-ignore></div>
+    </div>
+  </div>
+  <script>
+    const tl = gsap.timeline({ paused: true });
+    const S0 = 1.25;
+    const S1 = 1.62;
+    // Arrival from below, continuing the upward whip of the previous shot.
+    tl.fromTo("#train-frame", { y: 260, opacity: 0.3 }, { y: 0, opacity: 1, duration: 0.4, ease: "expo.out" }, 0);
+    tl.fromTo(
+      "#train-label",
+      { opacity: 0, filter: "blur(8px)" },
+      { opacity: 1, filter: "blur(0px)", duration: 0.18, ease: "power4.out" },
+      0.1,
+    );
+    // Wide: the whole `devwaste train` output (screenshot rows 390..877).
+    // Then push in toward "Threshold ... 3.2925" and "Training complete".
+    tl.fromTo(
+      "#train-cam",
+      { x: 8 - S0 * 10, y: 4 - S0 * 376, scale: S0 },
+      { x: 6 - S1 * 10, y: 120 - S1 * 598, scale: S1, duration: 2.0, ease: "power2.inOut" },
+      0.9,
+    );
+    tl.fromTo("#train-dim", { opacity: 0 }, { opacity: 0.8, duration: 0.5, ease: "power2.inOut" }, 2.4);
+    tl.fromTo("#train-box-thr", { opacity: 0, scale: 1.25 }, { opacity: 1, scale: 1, duration: 0.3, ease: "expo.out" }, 3.0);
+    tl.fromTo("#train-box-done", { opacity: 0, scale: 1.25 }, { opacity: 1, scale: 1, duration: 0.3, ease: "expo.out" }, 3.3);
+    // Exit: the outgoing frame dips darker for a few frames before the hard cut.
+    tl.to("#train-frame", { opacity: 0.6, duration: 0.1, ease: "none" }, 4.86);
+    window.__timelines["train"] = tl;
+  </script>
+</template>

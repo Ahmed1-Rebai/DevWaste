@@ -1,0 +1,106 @@
+<template>
+  <style>
+    #root {
+      position: absolute;
+      inset: 0;
+      font-family: "Inter", sans-serif;
+    }
+    #stack-label {
+      position: absolute;
+      left: 60px;
+      right: 60px;
+      top: 228px;
+      font-family: "JetBrains Mono", monospace;
+      font-size: 46px;
+      font-weight: 700;
+      color: var(--color-ink, #e6edf3);
+    }
+    #stack-label .prompt {
+      color: var(--color-ok, #7ee787);
+    }
+    #stack-frame {
+      position: absolute;
+      left: 40px;
+      top: 330px;
+      width: 1000px;
+      height: 680px;
+      border: 2px solid #30363d;
+      border-radius: 18px;
+      overflow: hidden;
+      background: var(--color-ground, #171b22);
+    }
+    #stack-cam {
+      position: absolute;
+      left: 0;
+      top: 0;
+      width: 2138px;
+      height: 1078px;
+      transform-origin: 0 0;
+    }
+    #stack-cam img {
+      display: block;
+      width: 2138px;
+      height: 1078px;
+    }
+    #stack-cut {
+      position: absolute;
+      left: 0;
+      top: 380px;
+      width: 2138px;
+      height: 698px;
+      background: #171b22;
+    }
+    .stack-fade {
+      position: absolute;
+      top: 0;
+      bottom: 0;
+      width: 56px;
+    }
+    #stack-fade-l {
+      left: 0;
+      background: linear-gradient(90deg, #171b22, rgba(23, 27, 34, 0));
+    }
+    #stack-fade-r {
+      right: 0;
+      background: linear-gradient(270deg, #171b22, rgba(23, 27, 34, 0));
+    }
+  </style>
+  <div id="root" data-composition-id="stack" data-width="1080" data-height="1920">
+    <div id="stack-label"><span class="prompt">$</span> devwaste scan</div>
+    <div id="stack-frame" data-layout-allow-overflow>
+      <div id="stack-cam">
+        <img
+          id="stack-img"
+          src="assets/img/screenshot-scan-train.png"
+          alt="Real devwaste scan output: Docker Containers table with 5 FlakeRadar containers"
+        />
+        <div id="stack-cut" data-layout-ignore></div>
+      </div>
+      <div class="stack-fade" id="stack-fade-l" data-layout-ignore></div>
+      <div class="stack-fade" id="stack-fade-r" data-layout-ignore></div>
+    </div>
+  </div>
+  <script>
+    const tl = gsap.timeline({ paused: true });
+    const S = 1.62; // 22 px terminal glyphs -> ~36 px on the phone frame
+    // Arrival: the window rises into place.
+    tl.fromTo("#stack-frame", { y: 220, opacity: 0 }, { y: 0, opacity: 1, duration: 0.45, ease: "expo.out" }, 0);
+    tl.fromTo(
+      "#stack-label",
+      { opacity: 0, filter: "blur(8px)" },
+      { opacity: 1, filter: "blur(0px)", duration: 0.18, ease: "power4.out" },
+      0.12,
+    );
+    // Slow pan left -> right across the real table (rows y 0..380 of the screenshot).
+    tl.fromTo(
+      "#stack-cam",
+      { x: 20 - S * 12, y: 40 - S * 10, scale: S },
+      { x: 976 - S * 1452, y: 40 - S * 10, scale: S, duration: 4.3, ease: "power1.inOut" },
+      0.2,
+    );
+    // Exit: whip upward into the training output.
+    tl.to("#stack-frame", { y: -260, opacity: 0, duration: 0.24, ease: "power3.in" }, 4.74);
+    tl.to("#stack-label", { opacity: 0, duration: 0.16, ease: "power2.in" }, 4.74);
+    window.__timelines["stack"] = tl;
+  </script>
+</template>

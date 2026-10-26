@@ -1,0 +1,124 @@
+<template>
+  <style>
+    #root {
+      position: absolute;
+      inset: 0;
+      font-family: "Inter", sans-serif;
+    }
+    #watch-label {
+      position: absolute;
+      left: 60px;
+      right: 60px;
+      top: 228px;
+      font-family: "JetBrains Mono", monospace;
+      font-size: 46px;
+      font-weight: 700;
+      color: var(--color-ink, #e6edf3);
+    }
+    #watch-label .prompt {
+      color: var(--color-ok, #7ee787);
+    }
+    #watch-frame {
+      position: absolute;
+      left: 40px;
+      top: 330px;
+      width: 1000px;
+      height: 680px;
+      border: 2px solid #30363d;
+      border-radius: 18px;
+      overflow: hidden;
+      background: var(--color-ground, #171b22);
+    }
+    #watch-cam {
+      position: absolute;
+      left: 0;
+      top: 0;
+      width: 2138px;
+      height: 1078px;
+      transform-origin: 0 0;
+    }
+    #watch-cam img {
+      display: block;
+      width: 2138px;
+      height: 1078px;
+    }
+    #watch-dim {
+      position: absolute;
+      left: 0;
+      top: 0;
+      width: 2138px;
+      height: 447px;
+      background: #171b22;
+      opacity: 0.6;
+    }
+    /* Hides the rest of the session below the three normal rounds. */
+    #watch-cut {
+      position: absolute;
+      left: 0;
+      top: 541px;
+      width: 2138px;
+      height: 537px;
+      background: #171b22;
+    }
+    #watch-box {
+      position: absolute;
+      left: 598px;
+      top: 446px;
+      width: 436px;
+      height: 94px;
+      border: 3px solid var(--color-ok, #7ee787);
+      border-radius: 8px;
+    }
+    .watch-fade {
+      position: absolute;
+      top: 0;
+      bottom: 0;
+      width: 56px;
+    }
+    #watch-fade-l {
+      left: 0;
+      background: linear-gradient(90deg, #171b22, rgba(23, 27, 34, 0));
+    }
+    #watch-fade-r {
+      right: 0;
+      background: linear-gradient(270deg, #171b22, rgba(23, 27, 34, 0));
+    }
+  </style>
+  <div id="root" data-composition-id="watch" data-width="1080" data-height="1920">
+    <div id="watch-label"><span class="prompt">$</span> devwaste monitor</div>
+    <div id="watch-frame" data-layout-allow-overflow>
+      <div id="watch-cam">
+        <img
+          id="watch-img"
+          src="assets/img/screenshot-monitor-alert.png"
+          alt="Real devwaste monitor output: warm-up, then three rounds of All normal with max score about 1.4"
+        />
+        <div id="watch-dim" data-layout-ignore></div>
+        <div id="watch-cut" data-layout-ignore></div>
+        <div id="watch-box" data-layout-ignore></div>
+      </div>
+      <div class="watch-fade" id="watch-fade-l" data-layout-ignore></div>
+      <div class="watch-fade" id="watch-fade-r" data-layout-ignore></div>
+    </div>
+  </div>
+  <script>
+    const tl = gsap.timeline({ paused: true });
+    const S = 1.9;
+    // Hard cut in (after the dip). Label lands immediately.
+    tl.fromTo(
+      "#watch-label",
+      { opacity: 0, filter: "blur(8px)" },
+      { opacity: 1, filter: "blur(0px)", duration: 0.15, ease: "power4.out" },
+      0,
+    );
+    // Pan from the timestamps to "All normal (max score: 1.4205 / 1.3469 / 1.3961)".
+    tl.fromTo(
+      "#watch-cam",
+      { x: 4 - S * 10, y: 640 - S * 540, scale: S },
+      { x: 976 - S * 1036, y: 640 - S * 540, scale: S, duration: 1.9, ease: "power2.inOut" },
+      0.1,
+    );
+    tl.fromTo("#watch-box", { opacity: 0, scale: 1.12 }, { opacity: 1, scale: 1, duration: 0.3, ease: "expo.out" }, 2.05);
+    window.__timelines["watch"] = tl;
+  </script>
+</template>

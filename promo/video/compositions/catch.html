@@ -1,0 +1,185 @@
+<template>
+  <style>
+    #root {
+      position: absolute;
+      inset: 0;
+      font-family: "Inter", sans-serif;
+    }
+    #catch-label {
+      position: absolute;
+      left: 60px;
+      right: 60px;
+      top: 228px;
+      font-family: "JetBrains Mono", monospace;
+      font-size: 46px;
+      font-weight: 700;
+      color: var(--color-ink, #e6edf3);
+    }
+    #catch-label .prompt {
+      color: var(--color-ok, #7ee787);
+    }
+    #catch-frame {
+      position: absolute;
+      left: 40px;
+      top: 330px;
+      width: 1000px;
+      height: 680px;
+      border: 2px solid #30363d;
+      border-radius: 18px;
+      overflow: hidden;
+      background: var(--color-ground, #171b22);
+    }
+    #catch-flood {
+      position: absolute;
+      inset: 0;
+      border: 6px solid var(--color-accent, #f85149);
+      border-radius: 18px;
+    }
+    #catch-cam {
+      position: absolute;
+      left: 0;
+      top: 0;
+      width: 2138px;
+      height: 1078px;
+      transform-origin: 0 0;
+    }
+    #catch-cam img {
+      display: block;
+      width: 2138px;
+      height: 1078px;
+    }
+    /* All overlays below are in screenshot pixel coordinates. */
+    #catch-above {
+      position: absolute;
+      left: 0;
+      top: 0;
+      width: 2138px;
+      height: 571px;
+      background: #171b22;
+    }
+    #catch-cover {
+      position: absolute;
+      left: 0;
+      top: 571px;
+      width: 2138px;
+      height: 507px;
+      background: #171b22;
+    }
+    .catch-dim {
+      position: absolute;
+      background: #171b22;
+    }
+    #catch-dim-top {
+      left: 0;
+      top: 571px;
+      width: 2138px;
+      height: 246px;
+    }
+    #catch-dim-bot {
+      left: 0;
+      top: 847px;
+      width: 2138px;
+      height: 231px;
+    }
+    #catch-dim-right {
+      left: 1668px;
+      top: 817px;
+      width: 470px;
+      height: 30px;
+    }
+    .catch-box {
+      position: absolute;
+      top: 815px;
+      height: 34px;
+      border: 3px solid var(--color-accent, #f85149);
+      border-radius: 6px;
+    }
+    #catch-box-name {
+      left: 218px;
+      width: 250px;
+    }
+    #catch-box-score {
+      left: 904px;
+      width: 105px;
+    }
+    #catch-box-driver {
+      left: 1404px;
+      width: 262px;
+    }
+    .catch-fade {
+      position: absolute;
+      top: 0;
+      bottom: 0;
+      width: 48px;
+    }
+    #catch-fade-l {
+      left: 0;
+      background: linear-gradient(90deg, #171b22, rgba(23, 27, 34, 0));
+    }
+    #catch-fade-r {
+      right: 0;
+      background: linear-gradient(270deg, #171b22, rgba(23, 27, 34, 0));
+    }
+  </style>
+  <div id="root" data-composition-id="catch" data-width="1080" data-height="1920">
+    <div id="catch-label"><span class="prompt">$</span> devwaste monitor</div>
+    <div id="catch-frame" data-layout-allow-overflow>
+      <div id="catch-cam">
+        <img
+          id="catch-img"
+          src="assets/img/screenshot-monitor-alert.png"
+          alt="Real devwaste monitor ALERT lines: flakeradar-redis-1, score up to 83.2280, driver cpu_percent"
+        />
+        <div id="catch-above" data-layout-ignore></div>
+        <div id="catch-cover" data-layout-ignore></div>
+        <div class="catch-dim" id="catch-dim-top" data-layout-ignore></div>
+        <div class="catch-dim" id="catch-dim-bot" data-layout-ignore></div>
+        <div class="catch-dim" id="catch-dim-right" data-layout-ignore></div>
+        <div class="catch-box" id="catch-box-name" data-layout-ignore></div>
+        <div class="catch-box" id="catch-box-score" data-layout-ignore></div>
+        <div class="catch-box" id="catch-box-driver" data-layout-ignore></div>
+      </div>
+      <div class="catch-fade" id="catch-fade-l" data-layout-ignore></div>
+      <div class="catch-fade" id="catch-fade-r" data-layout-ignore></div>
+      <div id="catch-flood" data-layout-ignore></div>
+    </div>
+  </div>
+  <script>
+    const tl = gsap.timeline({ paused: true });
+    const A = 1.45; // wide on the ALERT block
+    const Z = 1.95; // punch-in on the 83.2280 row (screenshot y 820..843)
+    // Bottom edge of each real ALERT row, in the order the monitor printed them.
+    const rowBottoms = [597, 628, 659, 690, 721, 751, 782, 813, 844, 875, 905];
+
+    tl.set("#catch-label", { opacity: 1 }, 0);
+    // Colour flood on the frame: red border lands on the cut, then settles.
+    tl.fromTo("#catch-flood", { opacity: 1 }, { opacity: 0.55, duration: 0.6, ease: "power2.inOut" }, 0.3);
+
+    // Wide framing of the ALERT block.
+    tl.fromTo("#catch-cam", { x: 10 - A * 10, y: 98 - A * 572, scale: A }, { x: 10 - A * 10, y: 98 - A * 572, scale: A, duration: 1.9, ease: "none" }, 0);
+    // Reveal the real rows one by one: scores climb 13.36 -> 83.23 -> 70.93.
+    tl.set("#catch-cover", { y: 0 }, 0);
+    rowBottoms.forEach((b, i) => {
+      tl.set("#catch-cover", { y: b + 2 - 571 }, 0.12 + i * 0.15);
+    });
+
+    // Punch in on the container name of the 83.2280 row; dim the other rows.
+    tl.fromTo("#catch-dim-top", { opacity: 0 }, { opacity: 0.8, duration: 0.4, ease: "power2.inOut" }, 2.0);
+    tl.fromTo("#catch-dim-bot", { opacity: 0 }, { opacity: 0.8, duration: 0.4, ease: "power2.inOut" }, 2.0);
+    tl.to("#catch-cam", { x: 62 - Z * 13, y: 300 - Z * 820, scale: Z, duration: 0.6, ease: "power2.inOut" }, 2.0);
+    tl.fromTo("#catch-box-name", { opacity: 0, scale: 1.2 }, { opacity: 1, scale: 1, duration: 0.3, ease: "expo.out" }, 2.6);
+
+    // Pan to "Score: 83.2280 (Threshold: 3.2925)".
+    tl.to("#catch-cam", { x: 62 - Z * 820, duration: 0.6, ease: "power2.inOut" }, 3.4);
+    tl.fromTo("#catch-box-score", { opacity: 0, scale: 1.2 }, { opacity: 1, scale: 1, duration: 0.3, ease: "expo.out" }, 4.0);
+
+    // Pan to "Driver: cpu_percent (99.2%)".
+    tl.fromTo("#catch-dim-right", { opacity: 0 }, { opacity: 0.8, duration: 0.3, ease: "power2.inOut" }, 4.8);
+    tl.to("#catch-cam", { x: 498 - Z * 1483, duration: 0.6, ease: "power2.inOut" }, 4.8);
+    tl.fromTo("#catch-box-driver", { opacity: 0, scale: 1.2 }, { opacity: 1, scale: 1, duration: 0.3, ease: "expo.out" }, 5.4);
+
+    // Blur swap out to the end card.
+    tl.to(["#catch-frame", "#catch-label"], { opacity: 0, filter: "blur(10px)", duration: 0.18, ease: "power2.in" }, 6.8);
+    window.__timelines["catch"] = tl;
+  </script>
+</template>
