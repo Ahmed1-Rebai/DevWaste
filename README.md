@@ -1,5 +1,9 @@
 # DevWaste AI
 
+[![CI](https://github.com/Ahmed1-Rebai/DevWaste/actions/workflows/ci.yml/badge.svg)](https://github.com/Ahmed1-Rebai/DevWaste/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![Python 3.11+](https://img.shields.io/badge/python-3.11%2B-blue.svg)](pyproject.toml)
+
 **Deep Learning for Docker Resource Anomaly Detection**
 
 DevWaste AI is a local-first DevOps tool. It collects Docker container resource metrics and detects unusual time-series patterns with a PyTorch LSTM Autoencoder.
@@ -21,11 +25,24 @@ DevWaste AI learns what *normal* resource usage looks like from time-series wind
 - **Docker monitoring** (`scan`, `collect`): CPU %, memory, network I/O, block I/O, and restart count, computed the same way as `docker stats`. Read-only.
 - **Continuous online monitoring** (`monitor`): Streams metrics from running Docker containers, maintains per-container sliding window queues, converts cumulative counters to deltas in real-time, and scores windows against a trained LSTM Autoencoder with per-feature error attribution and persistence filtering.
 - **SQLite storage**: timestamped observations in a local database. Exports to CSV with cumulative byte counters converted to per-interval deltas.
-- **Synthetic scenarios** (`simulate`): reproducible, labelled `normal`, `cpu-spike`, `memory-growth`, `network-spike`, and `oscillating` runs.
+- **Synthetic scenarios** (`simulate`): reproducible, labelled `normal`, `cpu-spike`, `memory-growth`, `network-spike`, `oscillating`, and `subtle-oscillation` runs.
 - **Leakage-safe preprocessing**: chronological split per series *before* windowing, a scaler fitted on training data only, and windows that never span two containers or runs.
 - **LSTM Autoencoder** (`train`): trained on normal windows only. The threshold is the 95th percentile of reconstruction error on normal validation windows.
 - **Evaluation** (`evaluate`): precision, recall, F1, FPR, confusion matrix, ROC-AUC, and inference latency. The model is compared on the same windows with calibrated z-score and rolling-statistics baselines and a fixed-threshold rule. Each flagged window is attributed to the feature with the largest reconstruction error. Unlabelled data, such as real collected metrics, gets a detection-only report.
 - **Safe cleanup advice** (`cleanup --dry-run`): read-only inspection. The tool suggests commands and never runs them.
+
+## Demo
+
+A real session against a local Docker stack (FlakeRadar: Postgres, Redpanda, Redis, MLflow, Dagster). The model was trained on 5 minutes of `devwaste collect` metrics from those 5 containers (745 rows) in about 8 s on CPU. During `devwaste monitor`, a `redis-benchmark` load spike was started inside the Redis container. Only `flakeradar-redis-1` was flagged, with `cpu_percent` as the driver; the other 4 containers stayed normal.
+
+![devwaste monitor flags the Redis container during a real load spike](docs/media/screenshot-monitor-alert.png)
+
+- Full terminal recording: [docs/media/devwaste-demo.mp4](docs/media/devwaste-demo.mp4) (28 s)
+- `scan` and `train` output: [docs/media/screenshot-scan-train.png](docs/media/screenshot-scan-train.png)
+- Recording script: [docs/media/demo.sh](docs/media/demo.sh) (needs Docker and the FlakeRadar stack)
+- Vertical (9:16) promo cut from the same screenshots: [promo/video/out/devwaste-linkedin-vertical.mp4](promo/video/out/devwaste-linkedin-vertical.mp4), source in [promo/video/](promo/video/), rebuild with `make video`
+
+This is a single demonstration on an injected load spike, not an accuracy measurement. See [Results](#results-synthetic-data) for measured numbers.
 
 ## Architecture
 
@@ -104,7 +121,7 @@ devwaste train --data data/train.csv --output-dir artifacts/
 devwaste evaluate --data data/test.csv --model artifacts/ --output reports/eval.json
 ```
 
-Scenarios: `normal`, `cpu-spike`, `memory-growth`, `network-spike`, `oscillating`. Every row carries `label`, `scenario`, `run_id`, `container_id`, and `container_name`.
+Scenarios: `normal`, `cpu-spike`, `memory-growth`, `network-spike`, `oscillating`, `subtle-oscillation` (not yet part of the results below). Every row carries `label`, `scenario`, `run_id`, `container_id`, and `container_name`.
 
 Useful `train` options include `--window-size`, `--hidden-dim`, `--num-layers`, `--epochs`, `--threshold-quantile`, `--threshold-method quantile|evt`, `--validation-split`, `--seed`, and `--device cpu|cuda`. Run `devwaste train --help` for the full list.
 
@@ -139,6 +156,8 @@ devwaste monitor --model artifacts/ --consecutive 2
 devwaste monitor --model artifacts/ --db data/metrics.db --output alerts.jsonl --json
 ```
 
+Other options: `--duration` (stop after N seconds), `--threshold-multiplier`, and `--adaptive-rate` (slow threshold adaptation on normal windows). See `devwaste monitor --help`.
+
 ### Visual diagnostic reports
 
 ```bash
@@ -168,7 +187,7 @@ This trains on synthetic normal data with three seeds, evaluates every scenario 
 
 ## Results (synthetic data)
 
-Window-level F1, mean ± std over 3 training seeds × 3 independent test runs. Full table, setup, and caveats are in [docs/results.md](docs/results.md).
+**All numbers in this table come from synthetic data generated by DevWaste's own simulator, not from real workloads.** Window-level F1, mean ± std over 3 training seeds × 3 independent test runs. Full table, setup, and caveats are in [docs/results.md](docs/results.md).
 
 | Scenario | LSTM AE | z-score | rolling | fixed threshold |
 |---|---|---|---|---|
@@ -204,6 +223,7 @@ On these large level-change incidents, the simple z-score is at least as good as
 ## Testing
 
 ```bash
+make lint test         # ruff check + ruff format --check + pytest
 pytest                 # unit tests: no Docker, no GPU, no network
 pytest -m integration  # optional: needs a running Docker daemon
 ruff check .
@@ -225,9 +245,10 @@ src/devwaste/
   evaluation/            Metrics
   reporting/             Terminal/JSON report rendering
   safety/                Read-only cleanup advisor
-scripts/run_experiment.py
+scripts/                run_experiment.py, real_incident_experiment.py
 tests/
-docs/
+docs/                  architecture, results, media/ (demo recording)
+promo/video/           HyperFrames source for the promo video
 ```
 
 ## Roadmap
@@ -260,4 +281,6 @@ docs/
 
 ## License
 
-MIT. See [LICENSE](LICENSE).
+MIT License, Copyright (c) 2026 Ahmed1-Rebai. See [LICENSE](LICENSE).
+
+See also [CONTRIBUTING.md](CONTRIBUTING.md), [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md), [SECURITY.md](SECURITY.md), and [CHANGELOG.md](CHANGELOG.md).
