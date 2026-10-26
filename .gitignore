@@ -100,3 +100,31 @@ AGENTS.md
 memory.md
 # Experiment outputs (regenerate with scripts/run_experiment.py)
 /experiments/
+
+# Tool caches
+.ruff_cache/
+
+# Model artifacts and reports written by the CLI
+*.pt
+/model/
+/reports/
+alerts.jsonl
+
+# Node (promo video tooling)
+node_modules/
+
+# Promo video: render output and HyperFrames working files.
+# The final MP4 is committed explicitly; docs/media/ is not ignored.
+/promo/video/out/*
+!/promo/video/out/devwaste-linkedin-vertical.mp4
+/promo/video/renders/
+/promo/video/.hyperframes/
+/promo/video/.media/
+/promo/video/assets/sfx/
+/promo/video/CLAUDE.md
+
+# Agent skills installed locally by `npx skills add` (not part of the project)
+/.agents/
+/agent/
+/skills-lock.json
+/.claude/skills/
