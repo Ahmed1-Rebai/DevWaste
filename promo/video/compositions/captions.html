@@ -1,0 +1,61 @@
+<template>
+  <style>
+    #root {
+      position: absolute;
+      inset: 0;
+      font-family: "Inter", sans-serif;
+    }
+    /* Burned-in captions: LinkedIn autoplays muted. Bottom of the 168-1330 px safe band. */
+    .cap {
+      position: absolute;
+      left: 0;
+      top: 1070px;
+      width: 1080px;
+      padding: 0 70px;
+      text-align: center;
+      overflow: visible;
+    }
+    .cap .txt {
+      display: inline-block;
+      font-size: 60px;
+      font-weight: 800;
+      line-height: 1.18;
+      letter-spacing: -0.01em;
+      color: #e6edf3;
+    }
+    .cap .red {
+      color: #f85149;
+    }
+    .cap .green {
+      color: #7ee787;
+    }
+  </style>
+  <div id="root" data-composition-id="captions" data-width="1080" data-height="1920">
+    <div id="cap-stack" class="cap clip" data-start="3.25" data-duration="4.6">
+      <span class="txt" id="cap-stack-t">5 real containers: Postgres, Redpanda, Redis, MLflow, Dagster</span>
+    </div>
+    <div id="cap-learn" class="cap clip" data-start="8.25" data-duration="4.6">
+      <span class="txt" id="cap-learn-t">LSTM autoencoder learns normal behaviour · ~8s on CPU</span>
+    </div>
+    <div id="cap-watch" class="cap clip" data-start="13.25" data-duration="3.6">
+      <span class="txt" id="cap-watch-t">Live monitoring: <span class="green">all normal</span></span>
+    </div>
+    <div id="cap-catch" class="cap clip" data-start="17.25" data-duration="6.6">
+      <span class="txt" id="cap-catch-t">Redis load spike → only <span class="red">redis</span> flagged · driver: CPU</span>
+    </div>
+  </div>
+  <script>
+    const tl = gsap.timeline({ paused: true });
+    const groups = [
+      ["#cap-stack-t", 3.25, 7.85],
+      ["#cap-learn-t", 8.25, 12.85],
+      ["#cap-watch-t", 13.25, 16.85],
+      ["#cap-catch-t", 17.25, 23.85],
+    ];
+    for (const [sel, start, end] of groups) {
+      tl.fromTo(sel, { opacity: 0, filter: "blur(8px)" }, { opacity: 1, filter: "blur(0px)", duration: 0.18, ease: "power4.out" }, start);
+      tl.to(sel, { opacity: 0, filter: "blur(6px)", duration: 0.12, ease: "power2.in" }, end - 0.12);
+    }
+    window.__timelines["captions"] = tl;
+  </script>
+</template>
