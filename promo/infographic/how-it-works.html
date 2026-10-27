@@ -1,0 +1,172 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>DevWaste AI: how it works</title>
+<style>
+  @font-face { font-family: "Inter"; font-weight: 400; src: url("fonts/Inter-400.woff2") format("woff2"); }
+  @font-face { font-family: "Inter"; font-weight: 700; src: url("fonts/Inter-700.woff2") format("woff2"); }
+  @font-face { font-family: "JetBrains Mono"; font-weight: 400; src: url("fonts/JetBrainsMono-400.woff2") format("woff2"); }
+  @font-face { font-family: "JetBrains Mono"; font-weight: 700; src: url("fonts/JetBrainsMono-700.woff2") format("woff2"); }
+  /* Palette from the real terminal recording in docs/media/. */
+  :root {
+    --ground: #171b22;
+    --card: #1f252f;
+    --line: #2d3542;
+    --ink: #e6edf3;
+    --muted: #8b949e;
+    --red: #f85149;
+    --green: #7ee787;
+    --blue: #58a6ff;
+    --amber: #e3b341;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { width: 1080px; height: 1350px; background: var(--ground); }
+  body {
+    font-family: "Inter", sans-serif;
+    color: var(--ink);
+    padding: 56px 64px 44px;
+    display: flex;
+    flex-direction: column;
+  }
+  .mono { font-family: "JetBrains Mono", monospace; }
+  header h1 { font-size: 64px; font-weight: 700; letter-spacing: -0.03em; line-height: 1; }
+  header h1 .ai { color: var(--red); }
+  header p { margin-top: 14px; font-size: 27px; color: var(--muted); }
+  header p b { color: var(--ink); font-weight: 700; }
+
+  .steps { margin-top: 34px; display: flex; flex-direction: column; }
+  .step {
+    display: grid;
+    grid-template-columns: 64px 1fr;
+    column-gap: 22px;
+    position: relative;
+    padding-bottom: 18px;
+  }
+  .step:not(:last-child)::after {
+    content: "";
+    position: absolute;
+    left: 31px;
+    top: 64px;
+    bottom: 0;
+    width: 2px;
+    background: var(--line);
+  }
+  .num {
+    width: 64px; height: 64px; border-radius: 50%;
+    border: 2px solid var(--green);
+    color: var(--green);
+    display: flex; align-items: center; justify-content: center;
+    font-family: "JetBrains Mono", monospace; font-size: 28px; font-weight: 700;
+    background: var(--ground);
+  }
+  .step.alert .num { border-color: var(--red); color: var(--red); }
+  .card {
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    padding: 16px 22px 17px;
+  }
+  .card h2 { font-size: 29px; font-weight: 700; display: flex; align-items: baseline; gap: 14px; }
+  .card h2 .cmd { font-family: "JetBrains Mono", monospace; font-size: 20px; font-weight: 400; color: var(--green); }
+  .card p { margin-top: 7px; font-size: 21px; line-height: 1.38; color: #c9d1d9; }
+  .card p .hl { color: var(--ink); font-weight: 700; }
+  .card p code { font-family: "JetBrains Mono", monospace; font-size: 19px; color: var(--blue); }
+  .step.alert .card { border-color: rgba(248, 81, 73, 0.55); }
+
+  .proof {
+    margin-top: 6px;
+    border-radius: 14px;
+    border: 1px solid rgba(248, 81, 73, 0.55);
+    background: rgba(248, 81, 73, 0.08);
+    padding: 16px 22px;
+    font-size: 21px;
+    line-height: 1.4;
+  }
+  .proof .tag { font-family: "JetBrains Mono", monospace; font-weight: 700; color: var(--red); margin-right: 10px; }
+  .proof .mono { font-size: 19px; }
+  .proof .r { color: var(--red); font-weight: 700; white-space: nowrap; }
+  .proof .a { color: var(--amber); }
+  .proof .b { color: var(--blue); }
+
+  .stack { margin-top: 22px; display: flex; flex-wrap: wrap; gap: 9px; }
+  .chip {
+    font-family: "JetBrains Mono", monospace; font-size: 17px;
+    padding: 7px 12px; border-radius: 999px;
+    border: 1px solid var(--line); color: #c9d1d9;
+  }
+  .chip.key { border-color: var(--green); color: var(--green); }
+
+  footer {
+    margin-top: auto;
+    display: flex; justify-content: space-between; align-items: baseline;
+    font-size: 21px; color: var(--muted);
+  }
+  footer .repo { font-family: "JetBrains Mono", monospace; color: var(--green); font-size: 22px; }
+</style>
+</head>
+<body>
+  <header>
+    <h1>DevWaste <span class="ai">AI</span>: how it works</h1>
+    <p>Deep-learning anomaly detection for Docker. <b>100% local, no LLMs, diagnostic only.</b></p>
+  </header>
+
+  <section class="steps">
+    <div class="step">
+      <div class="num">1</div>
+      <div class="card">
+        <h2>Collect <span class="cmd">devwaste collect</span></h2>
+        <p>Read-only Docker stats, computed like <code>docker stats</code>: <span class="hl">CPU %, memory %, network rx/tx, block read/write</span>. Stored locally in SQLite.</p>
+      </div>
+    </div>
+    <div class="step">
+      <div class="num">2</div>
+      <div class="card">
+        <h2>Prepare</h2>
+        <p>Counters become per-interval deltas. Chronological split per container, scaler fit on training data only, <span class="hl">sliding windows of 10 samples</span>. No data leakage.</p>
+      </div>
+    </div>
+    <div class="step">
+      <div class="num">3</div>
+      <div class="card">
+        <h2>Learn normal <span class="cmd">devwaste train</span></h2>
+        <p><span class="hl">LSTM autoencoder in PyTorch</span>, trained on normal windows only. Threshold = 95th percentile of validation reconstruction error (or EVT).</p>
+      </div>
+    </div>
+    <div class="step alert">
+      <div class="num">4</div>
+      <div class="card">
+        <h2>Monitor live <span class="cmd">devwaste monitor</span></h2>
+        <p>Each container's latest window is reconstructed. Error above the threshold for N consecutive windows → <span class="hl">ALERT, plus the feature that drove it</span>.</p>
+      </div>
+    </div>
+    <div class="step">
+      <div class="num">5</div>
+      <div class="card">
+        <h2>Report <span class="cmd">evaluate · report · cleanup --dry-run</span></h2>
+        <p>Terminal tables, JSON / JSONL, an offline HTML report. Cleanup tips are <span class="hl">suggestions only</span>: DevWaste never stops or deletes anything.</p>
+      </div>
+    </div>
+  </section>
+
+  <div class="proof">
+    <span class="tag">REAL RUN</span>5 containers (Postgres, Redpanda, Redis, MLflow, Dagster), ~8 s CPU training. During a <code class="mono">redis-benchmark</code> spike, only <span class="mono b">flakeradar-redis-1</span> was flagged: score <span class="r">13.4 → 83.2</span> (threshold 3.29), driver <span class="mono a">cpu_percent</span>.
+  </div>
+
+  <div class="stack">
+    <span class="chip key">PyTorch</span>
+    <span class="chip">Python 3.11+</span>
+    <span class="chip">Docker SDK</span>
+    <span class="chip">SQLite</span>
+    <span class="chip">pandas</span>
+    <span class="chip">scikit-learn</span>
+    <span class="chip">Typer</span>
+    <span class="chip">Rich</span>
+  </div>
+
+  <footer>
+    <span class="repo">github.com/Ahmed1-Rebai/DevWaste</span>
+    <span>MIT License</span>
+  </footer>
+</body>
+</html>
